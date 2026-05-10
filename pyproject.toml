@@ -1,0 +1,34 @@
+[project]
+name = "healthcare-rag"
+version = "0.1.0"
+description = "Agentic healthcare RAG assistant with ingestion, hybrid retrieval, safety guardrails, and evaluation."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "langchain>=0.2",
+    "langgraph>=0.1",
+    "langchain-openai",
+    "langchain-pinecone",
+    "pinecone-client",
+    "pgvector",
+    "psycopg2-binary",
+    "scispacy",
+    "rank_bm25",
+    "sentence-transformers",
+    "pdfplumber",
+    "biopython",
+    "ragas",
+    "langsmith",
+    "fastapi",
+    "uvicorn[standard]",
+    "redis",
+    "pydantic>=2",
+    "rich",
+    "graphviz",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
