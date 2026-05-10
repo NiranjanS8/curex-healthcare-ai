@@ -16,3 +16,7 @@ docker compose up -d
 ```
 
 Frontend development will live in `frontend/` using Vite, React, and Tailwind.
+
+## Storage
+
+This project uses local PostgreSQL with pgvector for embedding storage. Pinecone is intentionally not used.

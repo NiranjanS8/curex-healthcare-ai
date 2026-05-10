@@ -8,7 +8,7 @@
 
 A production-grade, agentic RAG system for healthcare Q&A. Ingests clinical PDFs, PubMed abstracts, drug databases, and medical ontologies. Retrieves with hybrid search + reranking. Reasons via a LangGraph ReAct agent with tool use. Evaluates with RAGAS. Serves via FastAPI + React frontend.
 
-**Core stack:** Python 3.11, LangChain, LangGraph, OpenAI (GPT-4o + text-embedding-3-large), Pinecone or pgvector, scispaCy / BioBERT, RAGAS, LangSmith, FastAPI, React + Vite + Tailwind, Docker, Render.com
+**Core stack:** Python 3.11, LangChain, LangGraph, OpenAI (GPT-4o + text-embedding-3-large), pgvector, scispaCy / BioBERT, RAGAS, LangSmith, FastAPI, React + Vite + Tailwind, Docker, Render.com
 
 ---
 
@@ -86,7 +86,7 @@ healthcare-rag/
   requires-python = ">=3.11"
   dependencies = [
     "langchain>=0.2", "langgraph>=0.1", "langchain-openai",
-    "langchain-pinecone", "pinecone-client", "pgvector", "psycopg2-binary",
+    "pgvector", "psycopg2-binary",
     "scispacy", "rank_bm25", "sentence-transformers",
     "pdfplumber", "biopython", "ragas", "langsmith",
     "fastapi", "uvicorn[standard]", "redis", "pydantic>=2",
@@ -96,9 +96,7 @@ healthcare-rag/
 - Create `.env.example`:
   ```
   OPENAI_API_KEY=
-  PINECONE_API_KEY=
-  PINECONE_INDEX=healthcare-rag
-  VECTOR_BACKEND=pinecone          # pinecone | pgvector
+  VECTOR_BACKEND=pgvector
   POSTGRES_URL=postgresql://...
   LANGCHAIN_API_KEY=
   LANGCHAIN_TRACING_V2=true
@@ -163,7 +161,6 @@ healthcare-rag/
 **Tasks:**
 - `get_embeddings() -> Embeddings` — return `OpenAIEmbeddings(model="text-embedding-3-large")`
 - `get_vector_store(backend: str) -> VectorStore`
-  - `"pinecone"` → init Pinecone serverless index, return `PineconeVectorStore`
   - `"pgvector"` → connect via `POSTGRES_URL`, return `PGVector` store
 - `batch_upsert(chunks: list[Document], batch_size=100)`
   - Upsert in batches with retry (tenacity, max 3 retries, exponential backoff)

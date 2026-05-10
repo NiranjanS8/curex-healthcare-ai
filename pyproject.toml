@@ -8,8 +8,6 @@ dependencies = [
     "langchain>=0.2",
     "langgraph>=0.1",
     "langchain-openai",
-    "langchain-pinecone",
-    "pinecone-client",
     "pgvector",
     "psycopg2-binary",
     "scispacy",
