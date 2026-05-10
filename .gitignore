@@ -21,6 +21,8 @@ build/
 *.sqlite
 *.db
 graphify-out/
+HEALTHCARE_RAG_AGENT_PLAN.md
+rag_healthcare_architecture.svg
 
 .DS_Store
 Thumbs.db

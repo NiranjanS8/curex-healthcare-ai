@@ -4,9 +4,9 @@ Agentic healthcare RAG assistant for medical literature Q&A, hybrid retrieval, t
 
 ## Architecture
 
-The target architecture is captured in [rag_healthcare_architecture.svg](rag_healthcare_architecture.svg). The system will be built phase by phase from ingestion through deployment.
+The system is built as an end-to-end healthcare RAG application spanning ingestion, retrieval, agent orchestration, safety checks, evaluation, and a React interface.
 
-## Phase 1.1 Setup
+## Setup
 
 ```powershell
 python -m uv venv --python 3.11
