@@ -14,6 +14,7 @@ dependencies = [
     "scispacy",
     "rank_bm25",
     "sentence-transformers",
+    "tenacity",
     "pdfplumber",
     "biopython",
     "ragas",

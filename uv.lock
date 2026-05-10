@@ -981,6 +981,7 @@ dependencies = [
     { name = "rich" },
     { name = "scispacy" },
     { name = "sentence-transformers" },
+    { name = "tenacity" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -1010,6 +1011,7 @@ requires-dist = [
     { name = "rich" },
     { name = "scispacy" },
     { name = "sentence-transformers" },
+    { name = "tenacity" },
     { name = "uvicorn", extras = ["standard"] },
 ]
 
