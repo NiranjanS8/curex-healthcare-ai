@@ -84,7 +84,8 @@ def test_extract_patient_context_uses_structured_extractor() -> None:
 
 
 def test_extract_patient_context_regex_fallback(monkeypatch) -> None:
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
 
     context = memory.extract_patient_context(
         [

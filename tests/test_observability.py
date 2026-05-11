@@ -27,7 +27,7 @@ def test_build_run_config_includes_metadata() -> None:
 
 def test_cost_tracker_extracts_tokens_and_logs_run(tmp_path) -> None:
     db_path = tmp_path / "query_log.sqlite"
-    tracker = CostTracker(session_id="s1", query="hello", model_name="gpt-4o", db_path=db_path)
+    tracker = CostTracker(session_id="s1", query="hello", model_name="gemini-2.5-flash", db_path=db_path)
     response = LLMResult(
         generations=[[ChatGeneration(message=AIMessage(content="hi"))]],
         llm_output={"token_usage": {"prompt_tokens": 1000, "completion_tokens": 500}},
@@ -38,15 +38,20 @@ def test_cost_tracker_extracts_tokens_and_logs_run(tmp_path) -> None:
 
     assert tracker.prompt_tokens == 1000
     assert tracker.completion_tokens == 500
-    assert result["cost_usd"] == 0.0075
+    assert result["cost_usd"] == 0.00155
     summary = get_run_summary(db_path=db_path)
     assert summary["runs"] == 1
-    assert summary["avg_cost_usd"] == 0.0075
+    assert summary["avg_cost_usd"] == 0.00155
     assert summary["avg_faithfulness"] == 0.75
 
 
 def test_cost_tracker_reads_response_metadata_tokens(tmp_path) -> None:
-    tracker = CostTracker(session_id="s1", query="hello", model_name="gpt-4o-mini", db_path=tmp_path / "q.sqlite")
+    tracker = CostTracker(
+        session_id="s1",
+        query="hello",
+        model_name="gemini-2.5-flash-lite",
+        db_path=tmp_path / "q.sqlite",
+    )
     message = AIMessage(
         content="hi",
         response_metadata={"usage": {"input_tokens": 2000, "output_tokens": 1000}},
@@ -56,7 +61,7 @@ def test_cost_tracker_reads_response_metadata_tokens(tmp_path) -> None:
     tracker.on_llm_end(response)
     result = tracker.finish()
 
-    assert result["cost_usd"] == 0.0009
+    assert result["cost_usd"] == 0.0006
 
 
 def test_get_run_summary_averages_recent_runs(tmp_path) -> None:

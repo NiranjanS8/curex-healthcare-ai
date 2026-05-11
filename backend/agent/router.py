@@ -72,9 +72,11 @@ ROUTE_BY_CATEGORY: dict[QueryCategory, str] = {
 
 
 def get_intent_classifier():
-    from langchain_openai import ChatOpenAI
+    from langchain_google_genai import ChatGoogleGenerativeAI
 
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0).with_structured_output(QueryIntent)
+    return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0).with_structured_output(
+        QueryIntent
+    )
 
 
 def _coerce_intent(result) -> QueryIntent:

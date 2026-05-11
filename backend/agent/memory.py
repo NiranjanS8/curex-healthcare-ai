@@ -197,11 +197,13 @@ def extract_patient_context(
             )
         )
 
-    if os.getenv("OPENAI_API_KEY"):
+    if os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"):
         try:
-            from langchain_openai import ChatOpenAI
+            from langchain_google_genai import ChatGoogleGenerativeAI
 
-            structured = ChatOpenAI(model="gpt-4o-mini", temperature=0).with_structured_output(PatientContext)
+            structured = ChatGoogleGenerativeAI(
+                model="gemini-2.5-flash", temperature=0
+            ).with_structured_output(PatientContext)
             return _coerce_patient_context(
                 structured.invoke(
                     [

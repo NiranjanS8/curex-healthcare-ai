@@ -39,7 +39,8 @@ def test_score_faithfulness_returns_float() -> None:
 
 
 def test_fallback_score_rewards_context_overlap_and_citations(monkeypatch) -> None:
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     docs = [
         Document(
             page_content="Warfarin and aspirin may increase bleeding risk.",
@@ -56,7 +57,8 @@ def test_fallback_score_rewards_context_overlap_and_citations(monkeypatch) -> No
 
 
 def test_fallback_scores_unsupported_response_low(monkeypatch) -> None:
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     docs = [Document(page_content="Metformin lowers blood glucose.", metadata={})]
 
     result = score_faithfulness_result("Aspirin prevents all strokes.", docs)
@@ -66,6 +68,7 @@ def test_fallback_scores_unsupported_response_low(monkeypatch) -> None:
 
 
 def test_no_context_is_faithful_when_response_admits_insufficient_context(monkeypatch) -> None:
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
 
     assert score_faithfulness("I do not have enough retrieved context to answer.", []) == 1.0

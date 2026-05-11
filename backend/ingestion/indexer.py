@@ -13,7 +13,7 @@ from graphviz.backend.execute import ExecutableNotFound
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStore
-from langchain_openai import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores.pgvector import PGVector
 from rich.console import Console
 from rich.progress import Progress
@@ -25,15 +25,18 @@ from backend.ingestion.loaders import load_all
 
 
 DEFAULT_COLLECTION_NAME = "healthcare_rag_chunks"
-DEFAULT_EMBEDDING_MODEL = "text-embedding-3-large"
+DEFAULT_EMBEDDING_MODEL = "gemini-embedding-2-preview"
 DEFAULT_EMBEDDING_DIMENSIONS = 3072
 EMBEDDING_COST_PER_1K_TOKENS_USD = 0.00013
 
 
 def get_embeddings() -> Embeddings:
-    """Return the OpenAI embedding model used by the ingestion pipeline."""
+    """Return the Gemini embedding model used by the ingestion pipeline."""
 
-    return OpenAIEmbeddings(model=DEFAULT_EMBEDDING_MODEL)
+    return GoogleGenerativeAIEmbeddings(
+        model=DEFAULT_EMBEDDING_MODEL,
+        output_dimensionality=DEFAULT_EMBEDDING_DIMENSIONS,
+    )
 
 
 def get_vector_store(
@@ -109,7 +112,7 @@ def draw_pipeline_graph(output_path: str | Path = "pipeline_graph.png") -> Path:
     graph.node("sources", "PDFs + PubMed", shape="folder")
     graph.node("load", "Load Documents", shape="box")
     graph.node("chunk", "NER + Semantic Chunking", shape="box")
-    graph.node("embed", "OpenAI Embeddings", shape="box")
+    graph.node("embed", "Gemini Embeddings", shape="box")
     graph.node("pgvector", "PostgreSQL + pgvector", shape="cylinder")
     graph.edges([("sources", "load"), ("load", "chunk"), ("chunk", "embed"), ("embed", "pgvector")])
 

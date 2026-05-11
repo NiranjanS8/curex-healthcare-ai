@@ -45,9 +45,9 @@ def generate_hypothetical_answer(query: str, *, llm: ChatModelLike | None = None
 
     model = llm
     if model is None:
-        from langchain_openai import ChatOpenAI
+        from langchain_google_genai import ChatGoogleGenerativeAI
 
-        model = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
 
     prompt = HYDE_PROMPT_TEMPLATE.format(query=query)
     answer = _response_text(model.invoke(prompt))

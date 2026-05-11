@@ -50,9 +50,11 @@ def _coerce_result(result: Any) -> FaithfulnessResult:
 
 
 def get_faithfulness_judge():
-    from langchain_openai import ChatOpenAI
+    from langchain_google_genai import ChatGoogleGenerativeAI
 
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0).with_structured_output(FaithfulnessResult)
+    return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0).with_structured_output(
+        FaithfulnessResult
+    )
 
 
 def _token_set(text: str) -> set[str]:
@@ -123,7 +125,7 @@ def score_faithfulness_result(
             )
         )
 
-    if os.getenv("OPENAI_API_KEY"):
+    if os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"):
         try:
             return _coerce_result(
                 get_faithfulness_judge().invoke(

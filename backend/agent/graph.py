@@ -30,9 +30,9 @@ if os.getenv("LANGCHAIN_API_KEY"):
 
 DEFAULT_QUERY_LOG_DB_PATH = Path("healthcare_query_log.sqlite")
 MODEL_PRICING_PER_1M_TOKENS = {
-    "gpt-4o": {"input": 2.50, "output": 10.00},
-    "gpt-4o-2024-05-13": {"input": 5.00, "output": 15.00},
-    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+    "gemini-2.5-flash": {"input": 0.30, "output": 2.50},
+    "gemini-2.5-flash-lite": {"input": 0.10, "output": 0.40},
+    "gemini-embedding-2-preview": {"input": 0.15, "output": 0.0},
 }
 
 
@@ -312,7 +312,7 @@ class CostTracker(BaseCallbackHandler):
         *,
         session_id: str,
         query: str,
-        model_name: str = "gpt-4o",
+        model_name: str = "gemini-2.5-flash",
         faithfulness: float | None = None,
         db_path: str | Path | None = None,
     ) -> None:
@@ -335,7 +335,7 @@ class CostTracker(BaseCallbackHandler):
     def calculate_cost(self) -> float:
         pricing = MODEL_PRICING_PER_1M_TOKENS.get(
             self.model_name,
-            MODEL_PRICING_PER_1M_TOKENS["gpt-4o"],
+            MODEL_PRICING_PER_1M_TOKENS["gemini-2.5-flash"],
         )
         input_cost = (self.prompt_tokens / 1_000_000) * pricing["input"]
         output_cost = (self.completion_tokens / 1_000_000) * pricing["output"]

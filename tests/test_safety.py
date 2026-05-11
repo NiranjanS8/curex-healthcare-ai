@@ -41,7 +41,8 @@ def test_pre_check_blocks_off_topic_and_logs(tmp_path) -> None:
 
 
 def test_pre_check_blocks_harmful_heuristic(tmp_path, monkeypatch) -> None:
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
 
     result = safety.pre_check("What is a lethal dose for overdose?", db_path=tmp_path / "safety.sqlite")
 

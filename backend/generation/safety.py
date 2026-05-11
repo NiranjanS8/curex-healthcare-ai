@@ -119,9 +119,11 @@ def get_safety_log(*, db_path: str | Path | None = None) -> list[dict[str, Any]]
 
 
 def get_safety_classifier():
-    from langchain_openai import ChatOpenAI
+    from langchain_google_genai import ChatGoogleGenerativeAI
 
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0).with_structured_output(SafetyClassification)
+    return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0).with_structured_output(
+        SafetyClassification
+    )
 
 
 def _coerce_classification(result: Any) -> SafetyClassification:
@@ -177,7 +179,7 @@ def pre_check(
         classification = _coerce_classification(
             classifier.invoke([("system", SAFETY_SYSTEM_PROMPT), ("human", query)])
         )
-    elif os.getenv("OPENAI_API_KEY"):
+    elif os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"):
         try:
             classification = _coerce_classification(
                 get_safety_classifier().invoke([("system", SAFETY_SYSTEM_PROMPT), ("human", query)])
