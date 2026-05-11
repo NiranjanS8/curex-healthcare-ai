@@ -583,6 +583,38 @@
   margin: 0 auto;
 }
 
+.chat-toolbar {
+  position: sticky;
+  top: -1px;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 18px;
+  padding-top: 4px;
+}
+
+.agent-toggle {
+  border: 1px solid rgba(92, 132, 142, 0.28);
+  border-radius: 8px;
+  padding: 8px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary-dark);
+  background: rgba(255, 255, 255, 0.74);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 10px 24px rgba(29, 35, 35, 0.06);
+}
+
+.agent-toggle:hover,
+.agent-toggle-active {
+  color: white;
+  background: var(--primary-accent);
+  border-color: var(--primary-accent);
+}
+
 .empty-state {
   min-height: calc(100vh - 180px);
   display: flex;
@@ -772,6 +804,87 @@
 
 .faithfulness-row .faithfulness-low {
   background: var(--low);
+}
+
+.agent-trace {
+  margin-top: 14px;
+  border: 1px solid rgba(92, 132, 142, 0.22);
+  border-radius: 8px;
+  background: rgba(245, 245, 247, 0.78);
+  overflow: hidden;
+}
+
+.agent-trace-header {
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(209, 209, 219, 0.8);
+}
+
+.agent-trace-header span {
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.agent-trace-header small {
+  color: var(--muted-text);
+  font-size: 12px;
+}
+
+.agent-trace ol {
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.agent-step {
+  display: grid;
+  grid-template-columns: 10px 1fr;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.agent-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-top: 6px;
+  background: var(--low);
+}
+
+.agent-step-active .agent-step-dot {
+  background: var(--primary-accent);
+  box-shadow: 0 0 0 4px rgba(92, 132, 142, 0.16);
+}
+
+.agent-step-complete .agent-step-dot {
+  background: var(--high);
+}
+
+.agent-step-blocked .agent-step-dot {
+  background: var(--medium);
+}
+
+.agent-step strong {
+  display: block;
+  color: var(--primary-dark);
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+.agent-step small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted-text);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .citation-details {

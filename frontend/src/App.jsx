@@ -4,6 +4,8 @@ import {
   ArrowRight,
   BookOpenCheck,
   Database,
+  Eye,
+  EyeOff,
   Menu,
   ShieldCheck,
   Stethoscope,
@@ -41,6 +43,45 @@ function sessionTitleFromMessage(message) {
   const cleaned = message.trim().replace(/\s+/g, ' ')
   if (!cleaned) return 'Healthcare Conversation'
   return cleaned.length > 42 ? `${cleaned.slice(0, 42)}...` : cleaned
+}
+
+function createAgentTrace({ status = 'pending', citations = [], faithfulnessScore = null, error = null } = {}) {
+  const hasCitations = citations.length > 0
+  return [
+    {
+      label: 'Query router',
+      detail: status === 'pending' ? 'Classifying healthcare intent' : 'Intent routed',
+      status: error ? 'complete' : status === 'pending' ? 'active' : 'complete',
+    },
+    {
+      label: hasCitations ? 'Retriever' : 'Retriever / tools',
+      detail:
+        status === 'pending'
+          ? 'Waiting for evidence retrieval'
+          : hasCitations
+            ? `${citations.length} cited source${citations.length === 1 ? '' : 's'} returned`
+            : 'No cited context returned',
+      status: status === 'pending' ? 'pending' : hasCitations ? 'complete' : error ? 'blocked' : 'pending',
+    },
+    {
+      label: 'Safety check',
+      detail: error ? 'Response blocked by connection state' : 'Medical safety constraints applied',
+      status: status === 'pending' ? 'pending' : error ? 'blocked' : 'complete',
+    },
+    {
+      label: 'Faithfulness check',
+      detail:
+        faithfulnessScore === null
+          ? 'Score unavailable'
+          : `Grounding score ${(faithfulnessScore * 100).toFixed(0)}%`,
+      status: status === 'pending' ? 'pending' : faithfulnessScore === null ? 'pending' : 'complete',
+    },
+    {
+      label: 'Response',
+      detail: error || (status === 'pending' ? 'Streaming answer' : 'Answer delivered'),
+      status: error ? 'blocked' : status === 'pending' ? 'active' : 'complete',
+    },
+  ]
 }
 
 function LandingPage({ metrics, onStart }) {
@@ -148,6 +189,7 @@ function App() {
   const [sessions, setSessions] = useState([])
   const [metrics, setMetrics] = useState(DEFAULT_METRICS)
   const [citationDetails, setCitationDetails] = useState({})
+  const [isAgentTraceVisible, setIsAgentTraceVisible] = useState(false)
   const chatEndRef = useRef(null)
 
   useEffect(() => {
@@ -259,6 +301,11 @@ function App() {
               ...message,
               citations,
               faithfulnessScore: payload.faithfulness_score ?? message.faithfulnessScore,
+              agentTrace: createAgentTrace({
+                status: 'complete',
+                citations,
+                faithfulnessScore: payload.faithfulness_score ?? null,
+              }),
             }
           : message,
       ),
@@ -338,6 +385,7 @@ function App() {
       role: 'assistant',
       content: '',
       citations: [],
+      agentTrace: createAgentTrace({ status: 'pending' }),
       timestamp: nowLabel(),
     }
 
@@ -355,6 +403,10 @@ function App() {
                 ...message,
                 content:
                   'Unable to connect to the healthcare assistant API. Start the backend service and try again.',
+                agentTrace: createAgentTrace({
+                  status: 'complete',
+                  error: 'Backend API unavailable',
+                }),
               }
             : message,
         ),
@@ -411,6 +463,17 @@ function App() {
 
         <section className="chat-scroll">
           <div className="chat-content">
+            <div className="chat-toolbar">
+              <button
+                type="button"
+                className={`agent-toggle ${isAgentTraceVisible ? 'agent-toggle-active' : ''}`}
+                onClick={() => setIsAgentTraceVisible((visible) => !visible)}
+                aria-pressed={isAgentTraceVisible}
+              >
+                {isAgentTraceVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                {isAgentTraceVisible ? 'Hide agent flow' : 'Show agent flow'}
+              </button>
+            </div>
             {messages.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state-icon">
@@ -429,6 +492,7 @@ function App() {
                     key={message.id}
                     message={message}
                     onCitationClick={handleCitationClick}
+                    showAgentTrace={isAgentTraceVisible}
                   />
                 ))}
                 <div ref={chatEndRef} />

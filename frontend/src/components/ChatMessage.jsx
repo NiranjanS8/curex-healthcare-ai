@@ -8,7 +8,31 @@ function getFaithfulnessClass(score) {
   return 'faithfulness-low'
 }
 
-export function ChatMessage({ message, onCitationClick }) {
+function AgentTrace({ steps }) {
+  if (!steps?.length) return null
+
+  return (
+    <div className="agent-trace" aria-label="Visible agent workflow">
+      <div className="agent-trace-header">
+        <span>Agent flow</span>
+        <small>Visible workflow, not hidden reasoning</small>
+      </div>
+      <ol>
+        {steps.map((step) => (
+          <li key={step.label} className={`agent-step agent-step-${step.status}`}>
+            <span className="agent-step-dot" />
+            <div>
+              <strong>{step.label}</strong>
+              <small>{step.detail}</small>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
+export function ChatMessage({ message, onCitationClick, showAgentTrace = false }) {
   if (message.role === 'user') {
     return (
       <article className="message-row user-row">
@@ -55,6 +79,8 @@ export function ChatMessage({ message, onCitationClick }) {
               </strong>
             </div>
           )}
+
+          {showAgentTrace && <AgentTrace steps={message.agentTrace} />}
         </div>
       </div>
     </article>
