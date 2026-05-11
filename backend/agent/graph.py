@@ -14,6 +14,7 @@ from rich.table import Table
 
 from backend.agent.router import QueryIntent, classify_intent, route
 from backend.agent.tools import check_drug_interactions
+from backend.generation.faithfulness import score_faithfulness
 from backend.generation.safety import post_check, pre_check
 
 
@@ -26,6 +27,7 @@ class AgentState(TypedDict):
     safety_result: NotRequired[dict]
     response: NotRequired[str]
     faithfulness_score: NotRequired[float]
+    unsupported_claims: NotRequired[list[str]]
     session_id: str
     faithfulness_retries: NotRequired[int]
 
@@ -92,7 +94,7 @@ def tool_executor(state: AgentState) -> dict:
 def response_generator(state: AgentState) -> dict:
     if state.get("response") and state.get("faithfulness_score", 1.0) < 0.7:
         response = (
-            "I can only answer from explicitly retrieved evidence. "
+            "I can only use facts explicitly stated in the retrieved context. "
             "The available context is not strong enough for a detailed answer."
         )
     elif state.get("retrieved_docs"):
@@ -127,16 +129,20 @@ def safety_check(state: AgentState) -> dict:
 
 
 def faithfulness_check(state: AgentState) -> dict:
-    if "faithfulness_score" in state:
-        score = float(state["faithfulness_score"])
-    elif state.get("retrieved_docs") or state.get("tool_results") or state.get("response"):
+    if state.get("retrieved_docs") and state.get("response"):
+        score = score_faithfulness(state["response"], state["retrieved_docs"])
+    elif state.get("tool_results") or state.get("safety_result", {}).get("safe") is False:
         score = 1.0
     else:
         score = 0.0
 
     updates: dict = {"faithfulness_score": score}
     if score < 0.7:
-        updates["faithfulness_retries"] = state.get("faithfulness_retries", 0) + 1
+        next_retry = state.get("faithfulness_retries", 0) + 1
+        updates["faithfulness_retries"] = next_retry
+        if next_retry >= 2 and state.get("response"):
+            warning = "Low confidence: this answer may not be fully supported by the retrieved context.\n\n"
+            updates["response"] = warning + state["response"]
     return updates
 
 
