@@ -3,6 +3,8 @@ import {
   AlertCircle,
   ArrowRight,
   BookOpenCheck,
+  BrainCircuit,
+  ClipboardCheck,
   Database,
   Eye,
   EyeOff,
@@ -185,18 +187,94 @@ function LandingPage({ metrics, onStart, onSignIn, isAuthenticated }) {
         <article>
           <Stethoscope size={22} />
           <h2>Built for healthcare questions</h2>
-          <p>Routes intent, recalls session context, and keeps responses informational.</p>
+          <p>
+            Ask medication, condition, guideline, and clinical research questions in a focused
+            assistant experience designed for healthcare information workflows.
+          </p>
         </article>
         <article>
           <Database size={22} />
           <h2>Local vector retrieval</h2>
-          <p>Uses pgvector-backed retrieval with reranking and cited source chunks.</p>
+          <p>
+            Retrieves relevant passages from a local pgvector knowledge base, reranks evidence,
+            and keeps source chunks available beside every answer.
+          </p>
         </article>
         <article>
           <ShieldCheck size={22} />
           <h2>Safety-first generation</h2>
-          <p>Flags unsafe requests and scores whether each answer is grounded.</p>
+          <p>
+            Applies medical safety guardrails, blocks unsafe clinical instructions, and checks
+            whether responses stay grounded in retrieved evidence.
+          </p>
         </article>
+      </section>
+
+      <section className="landing-detail">
+        <div>
+          <p className="eyebrow">What CureX does</p>
+          <h2>Turns healthcare documents into cited, auditable assistant responses.</h2>
+        </div>
+        <div className="detail-grid">
+          <article>
+            <BookOpenCheck size={20} />
+            <h3>Evidence-backed answers</h3>
+            <p>
+              CureX answers from retrieved medical context instead of unsupported recall, then
+              shows citations so reviewers can inspect the source material quickly.
+            </p>
+          </article>
+          <article>
+            <BrainCircuit size={20} />
+            <h3>Agentic workflow</h3>
+            <p>
+              The assistant can expose its reasoning workflow on demand, showing routing,
+              retrieval, safety review, grounding checks, and response generation.
+            </p>
+          </article>
+          <article>
+            <ClipboardCheck size={20} />
+            <h3>Evaluation built in</h3>
+            <p>
+              Faithfulness, relevancy, context precision, and recall metrics help track whether
+              the RAG pipeline is producing dependable healthcare responses.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section className="landing-workflow" aria-label="How CureX works">
+        <div className="workflow-copy">
+          <p className="eyebrow">How it works</p>
+          <h2>From question to answer, every step is grounded.</h2>
+          <p>
+            CureX receives a healthcare question, retrieves relevant medical passages, validates
+            the response against safety and grounding rules, then streams a cited answer back to
+            the user.
+          </p>
+        </div>
+        <ol className="workflow-steps">
+          <li>
+            <span>01</span>
+            <strong>Route the request</strong>
+            <p>The system classifies the healthcare intent and prepares the right retrieval path.</p>
+          </li>
+          <li>
+            <span>02</span>
+            <strong>Retrieve and rank evidence</strong>
+            <p>Relevant chunks are pulled from pgvector and ordered for answer quality.</p>
+          </li>
+          <li>
+            <span>03</span>
+            <strong>Generate with guardrails</strong>
+            <p>The model answers with medical safety constraints and cites the supporting context.</p>
+          </li>
+          <li>
+            <span>04</span>
+            <strong>Evaluate grounding</strong>
+            <p>RAG quality metrics make the output reviewable for applied AI workflows.</p>
+          </li>
+        </ol>
       </section>
 
       <footer className="landing-footer">
@@ -247,7 +325,7 @@ function AuthPage({ mode, onModeChange, onAuthenticated, onCancel }) {
         <p className="eyebrow">Secure workspace</p>
         <h1>{isRegister ? 'Create your CureX account' : 'Sign in to CureX'}</h1>
         <p className="auth-copy">
-          JWT authentication keeps chat sessions and patient memory scoped to your account.
+          Access your private CureX workspace and continue healthcare research sessions securely.
         </p>
 
         <form className="auth-form" onSubmit={handleSubmit}>

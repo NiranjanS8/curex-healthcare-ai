@@ -314,6 +314,115 @@
   line-height: 1.55;
 }
 
+.landing-detail,
+.landing-workflow {
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto 24px;
+  border: 1px solid rgba(29, 35, 35, 0.12);
+  border-radius: 8px;
+  padding: 28px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.landing-detail {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.25fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.landing-detail h2,
+.landing-workflow h2 {
+  margin: 0;
+  color: var(--primary-dark);
+  font-size: clamp(28px, 3vw, 42px);
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-grid article {
+  border: 1px solid rgba(29, 35, 35, 0.1);
+  border-radius: 8px;
+  padding: 18px;
+  background: rgba(224, 224, 236, 0.42);
+}
+
+.detail-grid svg {
+  color: var(--primary-accent);
+}
+
+.detail-grid h3 {
+  margin: 16px 0 8px;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.detail-grid p,
+.workflow-copy p,
+.workflow-steps p {
+  margin: 0;
+  color: #4e5b5a;
+  font-size: 14px;
+  line-height: 1.58;
+}
+
+.landing-workflow {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.22fr);
+  gap: 32px;
+}
+
+.workflow-copy p:not(.eyebrow) {
+  margin-top: 18px;
+  max-width: 440px;
+  font-size: 15px;
+}
+
+.workflow-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.workflow-steps li {
+  min-height: 92px;
+  border: 1px solid rgba(29, 35, 35, 0.1);
+  border-radius: 8px;
+  padding: 16px 16px 16px 72px;
+  position: relative;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.workflow-steps span {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: white;
+  background: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.workflow-steps strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--primary-dark);
+  font-size: 16px;
+}
+
 .landing-footer {
   width: min(1120px, calc(100% - 40px));
   margin: 0 auto;
@@ -1345,6 +1454,8 @@
   .landing-hero,
   .landing-metrics,
   .landing-bands,
+  .landing-detail,
+  .landing-workflow,
   .landing-footer {
     width: min(100% - 32px, 720px);
   }
@@ -1357,7 +1468,10 @@
   }
 
   .landing-metrics,
-  .landing-bands {
+  .landing-bands,
+  .landing-detail,
+  .detail-grid,
+  .landing-workflow {
     grid-template-columns: 1fr;
   }
 
