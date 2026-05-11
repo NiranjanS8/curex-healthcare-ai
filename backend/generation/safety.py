@@ -22,6 +22,10 @@ CRISIS_MESSAGE = (
     "If you may hurt yourself or someone else, call your local emergency number now. "
     "In the U.S. or Canada, call or text 988 for immediate crisis support."
 )
+EMERGENCY_MESSAGE = (
+    "This may be urgent. I cannot triage emergencies here. "
+    "Call your local emergency number now or seek immediate emergency care."
+)
 OFF_TOPIC_MESSAGE = "I can only help with educational healthcare questions."
 DIAGNOSIS_REPLACEMENTS = {
     r"\byou have\b": "this may indicate",
@@ -37,7 +41,7 @@ class SafetyResult(BaseModel):
 
 
 class SafetyClassification(BaseModel):
-    label: Literal["in_scope", "off_topic", "harmful"]
+    label: Literal["in_scope", "off_topic", "harmful", "emergency"]
     reason: str
     modified_query: str = ""
 
@@ -53,6 +57,7 @@ Labels:
 - in_scope: educational healthcare, medication, symptom, guideline, or wellness question.
 - off_topic: unrelated to healthcare or asks for non-health tasks.
 - harmful: requests self-harm, medication misuse, poisoning, evading care, or dangerous medical instructions.
+- emergency: describes potentially urgent symptoms that need immediate emergency care.
 
 Return label, reason, and a modified_query that is safe and medically educational when possible."""
 
@@ -138,11 +143,44 @@ def _heuristic_classify(query: str) -> SafetyClassification:
     lowered = query.lower()
     harmful_patterns = [
         "kill myself",
+        "end my life",
         "suicide",
         "overdose",
         "poison",
         "lethal dose",
         "how many pills",
+        "how much insulin would kill",
+        "how much insulin to",
+        "opioids with alcohol",
+        "opioid with alcohol",
+        "with alcohol to get high",
+        "mix with alcohol to get high",
+        "make fentanyl",
+        "avoid getting caught",
+        "fake a prescription",
+    ]
+    dangerous_instruction_patterns = [
+        "exact dose",
+        "double my dose",
+        "triple my dose",
+        "stop taking my",
+        "ignore my doctor",
+        "without a prescription",
+        "for my child",
+        "for my baby",
+        "for my infant",
+    ]
+    emergency_patterns = [
+        "chest pain",
+        "can't breathe",
+        "cannot breathe",
+        "stroke symptoms",
+        "face drooping",
+        "severe bleeding",
+        "unconscious",
+        "seizure",
+        "anaphylaxis",
+        "throat is closing",
     ]
     health_terms = [
         "health",
@@ -161,6 +199,24 @@ def _heuristic_classify(query: str) -> SafetyClassification:
     ]
     if any(pattern in lowered for pattern in harmful_patterns):
         return SafetyClassification(label="harmful", reason="Potential self-harm or medication misuse.")
+    if any(pattern in lowered for pattern in emergency_patterns):
+        return SafetyClassification(label="emergency", reason="Potential emergency symptoms.")
+    if any(pattern in lowered for pattern in dangerous_instruction_patterns) and any(
+        term in lowered
+        for term in [
+            "dose",
+            "medication",
+            "medicine",
+            "drug",
+            "pill",
+            "insulin",
+            "opioid",
+            "oxycodone",
+            "anticoagulant",
+            "blood thinner",
+        ]
+    ):
+        return SafetyClassification(label="harmful", reason="Dangerous individualized medical instruction.")
     if not any(term in lowered for term in health_terms):
         return SafetyClassification(label="off_topic", reason="The query is outside healthcare scope.")
     return SafetyClassification(label="in_scope", reason="The query is healthcare-related.", modified_query=query)
@@ -191,6 +247,8 @@ def pre_check(
 
     if classification.label == "harmful":
         result = SafetyResult(safe=False, reason=CRISIS_MESSAGE, modified_query="")
+    elif classification.label == "emergency":
+        result = SafetyResult(safe=False, reason=EMERGENCY_MESSAGE, modified_query="")
     elif classification.label == "off_topic":
         result = SafetyResult(safe=False, reason=OFF_TOPIC_MESSAGE, modified_query="")
     else:
