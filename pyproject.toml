@@ -25,10 +25,21 @@ dependencies = [
     "pydantic>=2",
     "rich",
     "graphviz",
+    "mcp>=1.27.1",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
     "pytest",
     "ruff",
 ]
+
+[project.scripts]
+healthcare-mcp-server = "backend.mcp_server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend"]
