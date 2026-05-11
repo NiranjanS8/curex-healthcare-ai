@@ -1,0 +1,452 @@
+[
+  {
+    "id": "drug-001",
+    "category": "drug_interaction",
+    "difficulty": "easy",
+    "question": "What is the concern with taking warfarin and aspirin together?",
+    "ground_truth_answer": "Warfarin and aspirin can both increase bleeding risk, so combining them may raise the chance of bruising, gastrointestinal bleeding, or serious bleeding. This combination should be reviewed by a qualified clinician.",
+    "relevant_context": "Warfarin is an anticoagulant and aspirin has antiplatelet effects. Concomitant use may increase bleeding risk and should be monitored or avoided unless there is a clear clinical reason.",
+    "expected_citations": ["rxnav-warfarin-aspirin", "clinical-anticoagulation-review"]
+  },
+  {
+    "id": "drug-002",
+    "category": "drug_interaction",
+    "difficulty": "easy",
+    "question": "Why should nitrates not be combined with sildenafil?",
+    "ground_truth_answer": "Nitrates and sildenafil can both lower blood pressure. Using them together can cause severe hypotension, dizziness, syncope, or cardiovascular complications.",
+    "relevant_context": "Phosphodiesterase-5 inhibitors such as sildenafil potentiate the blood-pressure-lowering effects of nitrates. Co-administration is contraindicated because severe hypotension can occur.",
+    "expected_citations": ["pde5-nitrate-contraindication", "cardiology-drug-safety"]
+  },
+  {
+    "id": "drug-003",
+    "category": "drug_interaction",
+    "difficulty": "easy",
+    "question": "Can grapefruit juice interact with simvastatin?",
+    "ground_truth_answer": "Yes. Grapefruit juice can raise simvastatin exposure by inhibiting intestinal metabolism, which may increase the risk of statin-associated muscle toxicity.",
+    "relevant_context": "Grapefruit juice inhibits intestinal CYP3A4. Simvastatin is metabolized by CYP3A4, and increased exposure is associated with higher risk of myopathy and rhabdomyolysis.",
+    "expected_citations": ["statin-grapefruit-cyp3a4", "simvastatin-label"]
+  },
+  {
+    "id": "drug-004",
+    "category": "drug_interaction",
+    "difficulty": "medium",
+    "question": "What can happen if ibuprofen is taken with an ACE inhibitor and a diuretic?",
+    "ground_truth_answer": "This combination can increase the risk of acute kidney injury because NSAIDs, ACE inhibitors, and diuretics can each affect kidney blood flow or fluid balance.",
+    "relevant_context": "The combination of an NSAID, a renin-angiotensin system inhibitor, and a diuretic is associated with increased acute kidney injury risk, especially in dehydration or chronic kidney disease.",
+    "expected_citations": ["nsaid-ace-diuretic-aki", "kidney-safety-review"]
+  },
+  {
+    "id": "drug-005",
+    "category": "drug_interaction",
+    "difficulty": "medium",
+    "question": "Why is combining an SSRI with linezolid potentially dangerous?",
+    "ground_truth_answer": "Linezolid has monoamine oxidase inhibiting activity. Combining it with serotonergic drugs such as SSRIs may increase the risk of serotonin syndrome.",
+    "relevant_context": "Linezolid can inhibit monoamine oxidase. Serotonergic agents, including SSRIs, may precipitate serotonin syndrome when used with drugs that increase serotonin activity.",
+    "expected_citations": ["linezolid-ssri-serotonin", "infectious-disease-drug-safety"]
+  },
+  {
+    "id": "drug-006",
+    "category": "drug_interaction",
+    "difficulty": "medium",
+    "question": "What is the issue with combining trimethoprim-sulfamethoxazole and warfarin?",
+    "ground_truth_answer": "Trimethoprim-sulfamethoxazole can increase warfarin effect and raise INR, which may increase bleeding risk. INR monitoring and clinical review are commonly needed.",
+    "relevant_context": "Trimethoprim-sulfamethoxazole is associated with increased anticoagulant response in patients taking warfarin. Elevated INR and bleeding events have been reported.",
+    "expected_citations": ["tmp-smx-warfarin-inr", "anticoagulation-interaction-review"]
+  },
+  {
+    "id": "drug-007",
+    "category": "drug_interaction",
+    "difficulty": "medium",
+    "question": "Why can clarithromycin interact with atorvastatin?",
+    "ground_truth_answer": "Clarithromycin can inhibit CYP3A4 and increase atorvastatin exposure. This can raise the risk of statin muscle adverse effects.",
+    "relevant_context": "Macrolides such as clarithromycin inhibit CYP3A4. Atorvastatin is partly metabolized by CYP3A4, and increased statin exposure may increase myopathy risk.",
+    "expected_citations": ["clarithromycin-atorvastatin-cyp3a4", "statin-interaction-review"]
+  },
+  {
+    "id": "drug-008",
+    "category": "drug_interaction",
+    "difficulty": "medium",
+    "question": "What is a concern when lithium is used with NSAIDs?",
+    "ground_truth_answer": "NSAIDs can reduce lithium clearance in some patients, raising lithium concentrations and increasing the risk of toxicity.",
+    "relevant_context": "Nonsteroidal anti-inflammatory drugs may increase serum lithium concentrations by reducing renal lithium clearance. Lithium toxicity can include tremor, confusion, ataxia, and gastrointestinal symptoms.",
+    "expected_citations": ["lithium-nsaid-renal-clearance", "mood-stabilizer-safety"]
+  },
+  {
+    "id": "drug-009",
+    "category": "drug_interaction",
+    "difficulty": "medium",
+    "question": "Why is combining opioids with benzodiazepines risky?",
+    "ground_truth_answer": "Both drug classes can depress the central nervous system and breathing. Combined use increases risk of excessive sedation, respiratory depression, overdose, and death.",
+    "relevant_context": "Opioids and benzodiazepines are central nervous system depressants. Concurrent use is associated with increased risk of respiratory depression and overdose.",
+    "expected_citations": ["opioid-benzodiazepine-warning", "respiratory-depression-review"]
+  },
+  {
+    "id": "drug-010",
+    "category": "drug_interaction",
+    "difficulty": "hard",
+    "question": "Why can amiodarone complicate anticoagulation with warfarin?",
+    "ground_truth_answer": "Amiodarone can increase warfarin effect through metabolic inhibition, causing INR elevation over time. The interaction may develop gradually because amiodarone has a long half-life.",
+    "relevant_context": "Amiodarone inhibits pathways involved in warfarin metabolism and can increase anticoagulant response. Because amiodarone has a long half-life, the interaction may evolve over days to weeks.",
+    "expected_citations": ["amiodarone-warfarin-inr", "antiarrhythmic-anticoagulant-review"]
+  },
+  {
+    "id": "guide-001",
+    "category": "clinical_guideline",
+    "difficulty": "easy",
+    "question": "What lifestyle measures are commonly recommended for adults with hypertension?",
+    "ground_truth_answer": "Common recommendations include reducing sodium intake, following a heart-healthy diet, regular physical activity, weight management, limiting alcohol, and smoking cessation when relevant.",
+    "relevant_context": "Hypertension guidelines emphasize lifestyle modification, including dietary sodium reduction, DASH-style diet, exercise, weight loss for overweight patients, moderation of alcohol intake, and tobacco cessation.",
+    "expected_citations": ["hypertension-lifestyle-guideline", "cardiology-prevention-review"]
+  },
+  {
+    "id": "guide-002",
+    "category": "clinical_guideline",
+    "difficulty": "easy",
+    "question": "What is generally recommended for colorectal cancer screening in average-risk adults?",
+    "ground_truth_answer": "Average-risk adults are generally advised to begin colorectal cancer screening around age 45, using stool-based tests or direct visualization tests depending on patient preference and availability.",
+    "relevant_context": "Colorectal cancer screening guidance recommends screening average-risk adults beginning at age 45. Options include fecal immunochemical testing, stool DNA testing, flexible sigmoidoscopy, or colonoscopy.",
+    "expected_citations": ["colorectal-screening-guideline", "preventive-services-review"]
+  },
+  {
+    "id": "guide-003",
+    "category": "clinical_guideline",
+    "difficulty": "easy",
+    "question": "What vaccines are commonly recommended annually for many adults?",
+    "ground_truth_answer": "Annual influenza vaccination is commonly recommended for most adults, with exact vaccine choices depending on age, pregnancy status, immune status, and local guidance.",
+    "relevant_context": "Adult immunization schedules commonly recommend annual influenza vaccination for adults, with product selection and timing based on age, contraindications, and public health guidance.",
+    "expected_citations": ["adult-immunization-schedule", "influenza-vaccine-guidance"]
+  },
+  {
+    "id": "guide-004",
+    "category": "clinical_guideline",
+    "difficulty": "medium",
+    "question": "How do guidelines generally approach initial type 2 diabetes management?",
+    "ground_truth_answer": "Initial management generally includes lifestyle changes, cardiovascular risk assessment, individualized glycemic goals, and medication selection based on comorbidities, patient factors, and shared decision-making.",
+    "relevant_context": "Type 2 diabetes guidance emphasizes individualized glycemic targets, nutrition and physical activity, cardiovascular and kidney risk assessment, and medication choices tailored to comorbidities and patient preferences.",
+    "expected_citations": ["diabetes-standards-care", "diabetes-primary-care-guidance"]
+  },
+  {
+    "id": "guide-005",
+    "category": "clinical_guideline",
+    "difficulty": "medium",
+    "question": "What is the guideline approach to suspected stroke symptoms?",
+    "ground_truth_answer": "Sudden stroke symptoms require emergency evaluation. Guidance emphasizes rapid recognition, emergency services activation, brain imaging, and time-sensitive assessment for reperfusion therapy eligibility.",
+    "relevant_context": "Acute stroke guidelines stress immediate emergency response for sudden neurologic deficits, rapid imaging, glucose assessment, and evaluation for thrombolysis or thrombectomy within eligible time windows.",
+    "expected_citations": ["acute-stroke-guideline", "emergency-neurology-pathway"]
+  },
+  {
+    "id": "guide-006",
+    "category": "clinical_guideline",
+    "difficulty": "medium",
+    "question": "What do asthma guidelines emphasize for poor symptom control?",
+    "ground_truth_answer": "Guidelines emphasize checking inhaler technique, adherence, triggers, comorbidities, and exacerbation risk before stepping up therapy. Persistent poor control should be reviewed by a clinician.",
+    "relevant_context": "Asthma management guidance recommends assessing adherence, inhaler technique, environmental triggers, comorbid rhinitis or reflux, symptom frequency, and exacerbation history before adjusting controller therapy.",
+    "expected_citations": ["asthma-control-guideline", "pulmonary-care-pathway"]
+  },
+  {
+    "id": "guide-007",
+    "category": "clinical_guideline",
+    "difficulty": "medium",
+    "question": "What is the recommended first response to suspected sepsis?",
+    "ground_truth_answer": "Suspected sepsis requires urgent clinical assessment, prompt measurement of severity, cultures when appropriate, early antimicrobials, fluids when indicated, and source control evaluation.",
+    "relevant_context": "Sepsis guidance emphasizes rapid recognition, assessment for organ dysfunction, early antimicrobial therapy after cultures when feasible, hemodynamic support, lactate measurement, and source control.",
+    "expected_citations": ["sepsis-guideline", "critical-care-infection-pathway"]
+  },
+  {
+    "id": "guide-008",
+    "category": "clinical_guideline",
+    "difficulty": "medium",
+    "question": "What is generally recommended for smoking cessation support?",
+    "ground_truth_answer": "Smoking cessation care generally combines behavioral counseling with approved pharmacotherapy when appropriate, while considering contraindications and patient preference.",
+    "relevant_context": "Tobacco cessation guidelines recommend advising all tobacco users to quit, offering behavioral counseling, and considering evidence-based medications such as nicotine replacement, varenicline, or bupropion when appropriate.",
+    "expected_citations": ["tobacco-cessation-guideline", "preventive-counseling-review"]
+  },
+  {
+    "id": "guide-009",
+    "category": "clinical_guideline",
+    "difficulty": "hard",
+    "question": "How do guidelines approach chronic kidney disease risk reduction in diabetes?",
+    "ground_truth_answer": "Guidelines emphasize blood pressure control, glycemic management, albuminuria assessment, cardiovascular risk reduction, and kidney-protective medication choices when indicated by patient-specific factors.",
+    "relevant_context": "Diabetes and kidney disease guidance recommends periodic eGFR and albuminuria testing, individualized glycemic targets, blood pressure management, renin-angiotensin system blockade for albuminuria when appropriate, and use of kidney-protective therapies in eligible patients.",
+    "expected_citations": ["diabetes-ckd-guideline", "kidney-risk-reduction-review"]
+  },
+  {
+    "id": "guide-010",
+    "category": "clinical_guideline",
+    "difficulty": "hard",
+    "question": "What does guideline-based care consider for statin therapy in primary prevention?",
+    "ground_truth_answer": "Guideline-based decisions consider age, LDL cholesterol, diabetes, estimated atherosclerotic cardiovascular disease risk, risk enhancers, possible benefits and harms, and shared decision-making.",
+    "relevant_context": "Cholesterol guidelines recommend assessing ASCVD risk, LDL cholesterol level, diabetes status, age, risk-enhancing factors, and patient preferences when considering statins for primary prevention.",
+    "expected_citations": ["cholesterol-primary-prevention-guideline", "ascvd-risk-review"]
+  },
+  {
+    "id": "symptom-001",
+    "category": "symptom_info",
+    "difficulty": "easy",
+    "question": "What could a fever and cough suggest?",
+    "ground_truth_answer": "Fever and cough can occur with respiratory infections such as viral upper respiratory infection, influenza, COVID-19, bronchitis, or pneumonia. Severity and red flags determine urgency.",
+    "relevant_context": "Fever with cough is common in respiratory infections. Pneumonia is more concerning when symptoms include shortness of breath, chest pain, confusion, low oxygen levels, or persistent high fever.",
+    "expected_citations": ["respiratory-symptom-review", "pneumonia-red-flags"]
+  },
+  {
+    "id": "symptom-002",
+    "category": "symptom_info",
+    "difficulty": "easy",
+    "question": "What are common causes of a sore throat?",
+    "ground_truth_answer": "Common causes include viral infections, strep throat, allergies, irritation, reflux, or dry air. Trouble breathing, drooling, or inability to swallow requires urgent care.",
+    "relevant_context": "Most sore throats are viral, but group A streptococcal infection is an important bacterial cause. Red flags include airway symptoms, dehydration, severe unilateral pain, or neck swelling.",
+    "expected_citations": ["sore-throat-differential", "strep-throat-guidance"]
+  },
+  {
+    "id": "symptom-003",
+    "category": "symptom_info",
+    "difficulty": "easy",
+    "question": "What might frequent urination and thirst indicate?",
+    "ground_truth_answer": "Frequent urination and increased thirst can occur with high blood glucose and diabetes, but also with urinary infection, diuretics, high fluid intake, and other conditions.",
+    "relevant_context": "Polyuria and polydipsia are classic symptoms of hyperglycemia. Evaluation commonly includes blood glucose testing and assessment for urinary, medication-related, endocrine, or kidney causes.",
+    "expected_citations": ["hyperglycemia-symptoms", "polyuria-evaluation-review"]
+  },
+  {
+    "id": "symptom-004",
+    "category": "symptom_info",
+    "difficulty": "medium",
+    "question": "When is chest pain considered urgent?",
+    "ground_truth_answer": "Chest pain is urgent when it is severe, crushing, exertional, associated with shortness of breath, sweating, fainting, jaw or arm pain, or new neurologic symptoms.",
+    "relevant_context": "Chest pain with exertion, diaphoresis, dyspnea, syncope, radiation to jaw or arm, hemodynamic instability, or neurologic symptoms requires emergency evaluation for cardiac and other life-threatening causes.",
+    "expected_citations": ["chest-pain-red-flags", "emergency-cardiology-pathway"]
+  },
+  {
+    "id": "symptom-005",
+    "category": "symptom_info",
+    "difficulty": "medium",
+    "question": "What can cause sudden severe headache?",
+    "ground_truth_answer": "Sudden severe headache can have benign or serious causes, but thunderclap onset raises concern for subarachnoid hemorrhage or other emergencies and needs urgent evaluation.",
+    "relevant_context": "Thunderclap headache reaches maximal intensity rapidly. It is a red flag for subarachnoid hemorrhage, cervical artery dissection, cerebral venous thrombosis, and other urgent neurologic disorders.",
+    "expected_citations": ["thunderclap-headache-review", "neurology-red-flags"]
+  },
+  {
+    "id": "symptom-006",
+    "category": "symptom_info",
+    "difficulty": "medium",
+    "question": "What could leg swelling on one side mean?",
+    "ground_truth_answer": "One-sided leg swelling can result from injury, infection, venous disease, or deep vein thrombosis. New painful swelling, redness, or shortness of breath needs urgent assessment.",
+    "relevant_context": "Unilateral leg swelling has a differential that includes trauma, cellulitis, venous insufficiency, and deep vein thrombosis. DVT concern increases with pain, warmth, risk factors, and pulmonary symptoms.",
+    "expected_citations": ["unilateral-leg-swelling-review", "dvt-evaluation-guidance"]
+  },
+  {
+    "id": "symptom-007",
+    "category": "symptom_info",
+    "difficulty": "medium",
+    "question": "What are possible explanations for persistent fatigue?",
+    "ground_truth_answer": "Persistent fatigue can relate to sleep problems, anemia, thyroid disease, depression, chronic infection, medication effects, diabetes, kidney disease, or other causes requiring evaluation.",
+    "relevant_context": "Fatigue is nonspecific. Common evaluation considers sleep, mood, medications, anemia, thyroid dysfunction, metabolic disorders, chronic inflammatory disease, infection, and organ dysfunction.",
+    "expected_citations": ["fatigue-primary-care-review", "fatigue-differential-guidance"]
+  },
+  {
+    "id": "symptom-008",
+    "category": "symptom_info",
+    "difficulty": "medium",
+    "question": "What could burning with urination suggest?",
+    "ground_truth_answer": "Burning with urination can suggest urinary tract infection, sexually transmitted infection, irritation, stones, or inflammation. Fever, flank pain, pregnancy, or male sex may change urgency.",
+    "relevant_context": "Dysuria is commonly caused by cystitis, urethritis, sexually transmitted infections, vulvovaginitis, irritants, or stones. Fever or flank pain may indicate upper urinary tract involvement.",
+    "expected_citations": ["dysuria-differential", "uti-symptom-guidance"]
+  },
+  {
+    "id": "symptom-009",
+    "category": "symptom_info",
+    "difficulty": "hard",
+    "question": "How should dizziness with palpitations be interpreted?",
+    "ground_truth_answer": "Dizziness with palpitations can indicate arrhythmia, dehydration, anxiety, anemia, medication effects, or endocrine causes. Fainting, chest pain, or shortness of breath needs urgent evaluation.",
+    "relevant_context": "Palpitations with presyncope, syncope, chest pain, dyspnea, known structural heart disease, or abnormal vital signs raise concern for clinically significant arrhythmia.",
+    "expected_citations": ["palpitations-red-flags", "dizziness-cardiac-review"]
+  },
+  {
+    "id": "symptom-010",
+    "category": "symptom_info",
+    "difficulty": "hard",
+    "question": "What could abdominal pain with black stools indicate?",
+    "ground_truth_answer": "Black tarry stools with abdominal pain can indicate gastrointestinal bleeding, especially from the upper GI tract. This combination warrants urgent medical evaluation.",
+    "relevant_context": "Melena describes black tarry stool from digested blood and is commonly associated with upper gastrointestinal bleeding. Abdominal pain, weakness, dizziness, or anticoagulant use increases concern.",
+    "expected_citations": ["melena-upper-gi-bleed", "gastrointestinal-bleeding-guidance"]
+  },
+  {
+    "id": "dose-001",
+    "category": "dosage_query",
+    "difficulty": "easy",
+    "question": "Can you tell me the correct dose of amoxicillin for my child?",
+    "ground_truth_answer": "A specific pediatric dose cannot be provided without a clinician-confirmed diagnosis, weight, allergy history, kidney function, and local guidance. Pediatric antibiotic dosing must come from a qualified prescriber.",
+    "relevant_context": "Pediatric antibiotic dosing depends on indication, child weight, age, renal function, allergy history, local resistance patterns, and formulation. Medical supervision is required.",
+    "expected_citations": ["pediatric-antibiotic-dosing-principles", "amoxicillin-prescribing-guidance"]
+  },
+  {
+    "id": "dose-002",
+    "category": "dosage_query",
+    "difficulty": "easy",
+    "question": "How much acetaminophen is safe to take?",
+    "ground_truth_answer": "The safe amount depends on age, weight, liver disease, alcohol use, other acetaminophen-containing products, and local labeling. Follow the product label or clinician instructions and avoid duplicate products.",
+    "relevant_context": "Acetaminophen dosing depends on patient factors and formulation. Excess total daily intake can cause serious liver injury, especially with alcohol use, liver disease, or multiple combination products.",
+    "expected_citations": ["acetaminophen-label-safety", "liver-toxicity-review"]
+  },
+  {
+    "id": "dose-003",
+    "category": "dosage_query",
+    "difficulty": "easy",
+    "question": "Should I double my blood pressure pill if I miss a dose?",
+    "ground_truth_answer": "Do not double a missed dose unless your prescriber or medication instructions specifically say to. Check the medication label or contact a pharmacist or clinician.",
+    "relevant_context": "Missed-dose instructions vary by medication. Doubling doses can cause hypotension, dizziness, electrolyte abnormalities, or other adverse effects depending on the drug.",
+    "expected_citations": ["missed-dose-medication-safety", "antihypertensive-adherence-guidance"]
+  },
+  {
+    "id": "dose-004",
+    "category": "dosage_query",
+    "difficulty": "medium",
+    "question": "Can I increase my insulin dose if my glucose is high?",
+    "ground_truth_answer": "Insulin adjustments should follow a clinician-provided plan. Unsupervised changes can cause severe hypoglycemia or persistent hyperglycemia, so contact your diabetes care team if readings are high.",
+    "relevant_context": "Insulin dosing is individualized by regimen, meals, glucose pattern, illness, activity, and hypoglycemia risk. Patients should use a prescribed correction plan and seek medical advice for persistent hyperglycemia.",
+    "expected_citations": ["insulin-dose-adjustment-guidance", "diabetes-self-management-safety"]
+  },
+  {
+    "id": "dose-005",
+    "category": "dosage_query",
+    "difficulty": "medium",
+    "question": "What dose of warfarin should I take if my INR is low?",
+    "ground_truth_answer": "Warfarin dose changes should be directed by an anticoagulation clinician using INR history, bleeding risk, diet, interacting drugs, and indication. Do not self-adjust warfarin.",
+    "relevant_context": "Warfarin dosing is individualized and guided by INR trends, target INR range, indication, diet, adherence, interacting medications, and bleeding risk. Self-adjustment can cause thrombosis or bleeding.",
+    "expected_citations": ["warfarin-dose-management", "anticoagulation-clinic-guidance"]
+  },
+  {
+    "id": "dose-006",
+    "category": "dosage_query",
+    "difficulty": "medium",
+    "question": "Can I take extra albuterol if I am wheezing?",
+    "ground_truth_answer": "Use albuterol according to your asthma action plan or prescription. Needing frequent doses, severe shortness of breath, or poor relief can indicate an exacerbation requiring urgent care.",
+    "relevant_context": "Short-acting bronchodilator use should follow the prescribed asthma action plan. Increasing use or inadequate response may signal worsening asthma and need for urgent clinical assessment.",
+    "expected_citations": ["asthma-action-plan", "bronchodilator-safety-guidance"]
+  },
+  {
+    "id": "dose-007",
+    "category": "dosage_query",
+    "difficulty": "medium",
+    "question": "How should kidney disease affect medication dosing?",
+    "ground_truth_answer": "Many medications require dose adjustment or avoidance in kidney disease. Dosing decisions depend on kidney function, drug clearance, indication, and toxicity risk.",
+    "relevant_context": "Renal impairment can reduce drug clearance and increase toxicity. Medication dosing may need adjustment based on eGFR or creatinine clearance and drug-specific prescribing information.",
+    "expected_citations": ["renal-dose-adjustment-principles", "ckd-medication-safety"]
+  },
+  {
+    "id": "dose-008",
+    "category": "dosage_query",
+    "difficulty": "medium",
+    "question": "Is it safe to split tablets to change my dose?",
+    "ground_truth_answer": "Tablet splitting depends on the medication and formulation. Extended-release, enteric-coated, hazardous, or unscored tablets may be unsafe to split.",
+    "relevant_context": "Tablet splitting is not appropriate for all formulations. Modified-release, enteric-coated, narrow therapeutic index, hazardous, or unscored tablets may lead to dose dumping or inaccurate dosing.",
+    "expected_citations": ["tablet-splitting-safety", "medication-formulation-guidance"]
+  },
+  {
+    "id": "dose-009",
+    "category": "dosage_query",
+    "difficulty": "hard",
+    "question": "Can I use adult dosing instructions for an adolescent?",
+    "ground_truth_answer": "Not always. Adolescent dosing can depend on weight, pubertal development, indication, organ function, and medication-specific pediatric labeling, so a clinician or pharmacist should confirm.",
+    "relevant_context": "Adolescent medication dosing may be weight-based or adult-based depending on drug, indication, pharmacokinetics, organ function, and approved labeling. Adult instructions may be inappropriate.",
+    "expected_citations": ["adolescent-dosing-principles", "pediatric-pharmacology-review"]
+  },
+  {
+    "id": "dose-010",
+    "category": "dosage_query",
+    "difficulty": "hard",
+    "question": "How do doctors decide a chemotherapy dose?",
+    "ground_truth_answer": "Chemotherapy dosing is specialized and may consider body surface area, protocol, cancer type, organ function, blood counts, prior toxicity, drug interactions, and treatment goals.",
+    "relevant_context": "Oncology dosing is protocol-driven and may incorporate body surface area, renal and hepatic function, hematologic parameters, performance status, toxicity history, and regimen-specific modifications.",
+    "expected_citations": ["oncology-dosing-principles", "chemotherapy-protocol-safety"]
+  },
+  {
+    "id": "contra-001",
+    "category": "contraindication",
+    "difficulty": "easy",
+    "question": "Why is aspirin usually avoided in children with viral illness?",
+    "ground_truth_answer": "Aspirin is generally avoided in children and teenagers with viral illnesses because it has been associated with Reye syndrome, a rare but serious condition.",
+    "relevant_context": "Aspirin use in children or adolescents during viral infections has been associated with Reye syndrome. Pediatric fever management generally avoids aspirin unless specifically directed by a clinician.",
+    "expected_citations": ["aspirin-reye-syndrome", "pediatric-fever-guidance"]
+  },
+  {
+    "id": "contra-002",
+    "category": "contraindication",
+    "difficulty": "easy",
+    "question": "Why should someone with a penicillin allergy tell their clinician before antibiotics?",
+    "ground_truth_answer": "A penicillin allergy history can affect antibiotic selection because related antibiotics may trigger allergic reactions in some patients. Clinicians assess reaction type and severity.",
+    "relevant_context": "Medication allergy history should be reviewed before prescribing antibiotics. Beta-lactam selection depends on the reported reaction, timing, severity, and need for allergy evaluation.",
+    "expected_citations": ["penicillin-allergy-antibiotic-selection", "drug-allergy-guidance"]
+  },
+  {
+    "id": "contra-003",
+    "category": "contraindication",
+    "difficulty": "easy",
+    "question": "Why are NSAIDs often avoided in late pregnancy?",
+    "ground_truth_answer": "NSAIDs are often avoided later in pregnancy because they may affect fetal circulation, amniotic fluid, and maternal or fetal bleeding risk. Pregnancy medication decisions require obstetric guidance.",
+    "relevant_context": "NSAID use later in pregnancy can be associated with fetal renal effects, oligohydramnios, premature ductus arteriosus closure, and bleeding concerns. Obstetric guidance is recommended.",
+    "expected_citations": ["nsaid-pregnancy-warning", "obstetric-medication-safety"]
+  },
+  {
+    "id": "contra-004",
+    "category": "contraindication",
+    "difficulty": "hard",
+    "question": "Why should isotretinoin not be used during pregnancy?",
+    "ground_truth_answer": "Isotretinoin is contraindicated in pregnancy because it can cause severe birth defects and pregnancy loss. Strict pregnancy prevention requirements are used with this medication.",
+    "relevant_context": "Isotretinoin is a known teratogen. Exposure during pregnancy is associated with severe congenital malformations and pregnancy loss, so pregnancy prevention programs are required.",
+    "expected_citations": ["isotretinoin-teratogenicity", "acne-medication-pregnancy-safety"]
+  },
+  {
+    "id": "contra-005",
+    "category": "contraindication",
+    "difficulty": "medium",
+    "question": "Why are beta blockers used cautiously in asthma?",
+    "ground_truth_answer": "Beta blockers can worsen bronchospasm in susceptible patients, especially nonselective agents. Use depends on the indication, agent selectivity, and clinical supervision.",
+    "relevant_context": "Nonselective beta blockers can antagonize beta-2 receptors and provoke bronchospasm. Cardioselective agents may be considered in some patients when benefits outweigh risks.",
+    "expected_citations": ["beta-blocker-asthma-caution", "pulmonary-cardiology-drug-review"]
+  },
+  {
+    "id": "contra-006",
+    "category": "contraindication",
+    "difficulty": "medium",
+    "question": "Why can ACE inhibitors be contraindicated in pregnancy?",
+    "ground_truth_answer": "ACE inhibitors can harm fetal kidney development and are generally contraindicated in pregnancy. People who are pregnant or planning pregnancy should discuss safer alternatives.",
+    "relevant_context": "Renin-angiotensin system inhibitors, including ACE inhibitors, are associated with fetal renal injury and other fetotoxic effects, particularly later in pregnancy.",
+    "expected_citations": ["ace-inhibitor-pregnancy-contraindication", "hypertension-pregnancy-guidance"]
+  },
+  {
+    "id": "contra-007",
+    "category": "contraindication",
+    "difficulty": "medium",
+    "question": "Why is metformin used cautiously in severe kidney impairment?",
+    "ground_truth_answer": "Severe kidney impairment can increase metformin accumulation and the risk of lactic acidosis. Kidney function is assessed before and during therapy.",
+    "relevant_context": "Metformin is renally cleared. Significant renal impairment increases drug accumulation and is associated with risk of metformin-associated lactic acidosis, so eGFR thresholds guide use.",
+    "expected_citations": ["metformin-renal-impairment", "diabetes-kidney-medication-safety"]
+  },
+  {
+    "id": "contra-008",
+    "category": "contraindication",
+    "difficulty": "medium",
+    "question": "Why are live vaccines avoided in some immunocompromised patients?",
+    "ground_truth_answer": "Live vaccines may cause infection in people with significant immune suppression. Vaccine decisions depend on the type and degree of immune compromise.",
+    "relevant_context": "Live attenuated vaccines are contraindicated in certain immunocompromised states because vaccine organisms may replicate and cause disease. Inactivated vaccines are generally safer but may be less immunogenic.",
+    "expected_citations": ["live-vaccine-immunocompromised", "immunization-special-populations"]
+  },
+  {
+    "id": "contra-009",
+    "category": "contraindication",
+    "difficulty": "hard",
+    "question": "Why might estrogen-containing contraception be contraindicated with migraine with aura?",
+    "ground_truth_answer": "Migraine with aura is associated with increased ischemic stroke risk, and estrogen-containing contraception can further increase thrombotic risk. Non-estrogen options may be preferred.",
+    "relevant_context": "Combined hormonal contraception is generally contraindicated in migraine with aura because both aura and estrogen exposure are associated with increased ischemic stroke risk.",
+    "expected_citations": ["migraine-aura-estrogen-contraception", "contraceptive-eligibility-guidance"]
+  },
+  {
+    "id": "contra-010",
+    "category": "contraindication",
+    "difficulty": "hard",
+    "question": "Why is thrombolytic therapy contraindicated in some stroke patients?",
+    "ground_truth_answer": "Thrombolytics can increase bleeding risk. Contraindications may include intracranial hemorrhage, recent major bleeding or surgery, severe uncontrolled blood pressure, or timing outside eligibility windows.",
+    "relevant_context": "Acute ischemic stroke thrombolysis requires careful eligibility review. Contraindications include hemorrhage on imaging, high bleeding risk, uncontrolled hypertension, recent surgery or bleeding, and presentation outside treatment windows.",
+    "expected_citations": ["stroke-thrombolysis-contraindications", "acute-stroke-treatment-guideline"]
+  }
+]
