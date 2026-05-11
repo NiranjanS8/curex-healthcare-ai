@@ -70,3 +70,22 @@ def test_run_ingestion_pipeline_orchestrates(monkeypatch, tmp_path: Path) -> Non
     assert result["batches"] == 1
     assert result["estimated_cost_usd"] > 0
     assert store.calls == [chunks]
+
+
+def test_index_uploaded_document_adds_owner_metadata(monkeypatch, tmp_path: Path) -> None:
+    upload_path = tmp_path / "note.txt"
+    upload_path.write_text("Aspirin can increase bleeding risk.", encoding="utf-8")
+    docs = [Document(page_content="Aspirin can increase bleeding risk.", metadata={"source": str(upload_path)})]
+    chunks = [Document(page_content="Aspirin can increase bleeding risk.", metadata={"chunk_id": "chunk-1"})]
+    store = FakeVectorStore()
+
+    monkeypatch.setattr(indexer, "load_uploaded_file", lambda path: docs)
+    monkeypatch.setattr(indexer, "chunk_all", lambda loaded_docs: chunks)
+
+    result = indexer.index_uploaded_document(upload_path, owner_user_id="user-123", vector_store=store)
+
+    assert result["filename"] == "note.txt"
+    assert result["docs_loaded"] == 1
+    assert result["chunks_indexed"] == 1
+    assert store.calls[0][0].metadata["owner_user_id"] == "user-123"
+    assert store.calls[0][0].metadata["uploaded_filename"] == "note.txt"

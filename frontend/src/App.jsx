@@ -8,11 +8,13 @@ import {
   Database,
   Eye,
   EyeOff,
+  FileText,
   LockKeyhole,
   LogOut,
   Menu,
   ShieldCheck,
   Stethoscope,
+  UploadCloud,
   UserPlus,
   X,
 } from 'lucide-react'
@@ -373,6 +375,8 @@ function AuthPage({ mode, onModeChange, onAuthenticated, onCancel }) {
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploadingDocument, setIsUploadingDocument] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState(null)
   const [activeSessionId, setActiveSessionId] = useState(null)
   const [selectedCitationId, setSelectedCitationId] = useState(null)
   const [messages, setMessages] = useState([])
@@ -383,6 +387,7 @@ function App() {
   const [auth, setAuth] = useState(() => readStoredAuth())
   const [authMode, setAuthMode] = useState(null)
   const chatEndRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -629,6 +634,44 @@ function App() {
     }
   }
 
+  const handleDocumentUpload = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    if (!auth?.token) {
+      setAuthMode('login')
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('file', file)
+    setIsUploadingDocument(true)
+    setUploadStatus({ type: 'pending', message: `Indexing ${file.name}...` })
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/documents/upload`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData,
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.detail || 'Document upload failed.')
+      }
+      setUploadStatus({
+        type: 'success',
+        message: `${payload.chunks_indexed} chunk${payload.chunks_indexed === 1 ? '' : 's'} indexed from ${file.name}.`,
+      })
+    } catch (err) {
+      setUploadStatus({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Document upload failed.',
+      })
+    } finally {
+      setIsUploadingDocument(false)
+    }
+  }
+
   const selectedCitation = selectedCitationId ? citationDetails[selectedCitationId] : null
 
   const handleAuthenticated = (nextAuth) => {
@@ -645,6 +688,7 @@ function App() {
     setSessions([])
     setCitationDetails({})
     setSelectedCitationId(null)
+    setUploadStatus(null)
   }
 
   if (!auth?.token && authMode) {
@@ -713,6 +757,29 @@ function App() {
         <section className="chat-scroll">
           <div className="chat-content">
             <div className="chat-toolbar">
+              <div className="document-upload">
+                <button
+                  type="button"
+                  className="document-upload-button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingDocument}
+                >
+                  {isUploadingDocument ? <UploadCloud className="spin" size={16} /> : <FileText size={16} />}
+                  {isUploadingDocument ? 'Indexing document' : 'Add document'}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
+                  className="document-upload-input"
+                  onChange={handleDocumentUpload}
+                />
+                {uploadStatus && (
+                  <span className={`document-upload-status document-upload-${uploadStatus.type}`}>
+                    {uploadStatus.message}
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
                 className={`agent-toggle ${isAgentTraceVisible ? 'agent-toggle-active' : ''}`}

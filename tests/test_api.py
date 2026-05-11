@@ -235,3 +235,63 @@ def test_eval_metrics_returns_aggregate_scores(tmp_path: Path) -> None:
     assert metrics["runs"] == 2
     assert metrics["metrics"]["faithfulness"] == 0.9
     assert metrics["by_category"]["drug_interaction"]["context_recall"] == 0.65
+
+
+def test_upload_document_requires_authentication(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+
+    response = client.post(
+        "/documents/upload",
+        files={"file": ("note.txt", b"Metformin is used for type 2 diabetes.", "text/plain")},
+    )
+
+    assert response.status_code == 401
+
+
+def test_upload_document_indexes_user_document(tmp_path: Path) -> None:
+    indexed: list[tuple[Path, str]] = []
+
+    def fake_document_indexer(path: Path, user) -> dict:
+        indexed.append((path, user.user_id))
+        assert path.read_text(encoding="utf-8") == "Warfarin and aspirin may increase bleeding risk."
+        return {
+            "filename": path.name,
+            "docs_loaded": 1,
+            "chunks_indexed": 1,
+            "batches": 1,
+            "elapsed_seconds": 0.01,
+            "estimated_cost_usd": 0.0,
+        }
+
+    client = make_client(tmp_path, document_indexer=fake_document_indexer)
+    headers = auth_headers(client)
+
+    response = client.post(
+        "/documents/upload",
+        headers=headers,
+        files={
+            "file": (
+                "interaction-note.txt",
+                b"Warfarin and aspirin may increase bleeding risk.",
+                "text/plain",
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["chunks_indexed"] == 1
+    assert indexed
+    assert not indexed[0][0].exists()
+
+
+def test_upload_document_rejects_unsupported_file_type(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    headers = auth_headers(client)
+
+    response = client.post(
+        "/documents/upload",
+        headers=headers,
+        files={"file": ("spreadsheet.csv", b"drug,evidence", "text/csv")},
+    )
+
+    assert response.status_code == 400

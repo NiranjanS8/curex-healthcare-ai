@@ -20,6 +20,23 @@ class FakeRetriever:
         ]
 
 
+class FakeVectorStore:
+    def __init__(self) -> None:
+        self.filters = []
+
+    def similarity_search_with_score(self, query: str, k: int = 5, filter=None):
+        self.filters.append(filter)
+        return [
+            (
+                Document(
+                    page_content=f"pgvector evidence for {query}",
+                    metadata={"title": "Uploaded Guideline", "chunk_id": "upload-1"},
+                ),
+                0.18,
+            )
+        ]
+
+
 def safe_query(query: str) -> SafetyResult:
     return SafetyResult(safe=True, reason="ok", modified_query=query)
 
@@ -74,6 +91,18 @@ def test_graph_retrieval_path_invokes_retriever(monkeypatch) -> None:
     assert result["retrieved_docs"][0].metadata["chunk_id"] == "chunk-1"
     assert "Clinical Source" in result["response"]
     assert result["faithfulness_score"] == 0.93
+
+
+def test_pgvector_retrieval_uses_owner_filter(monkeypatch) -> None:
+    store = FakeVectorStore()
+    monkeypatch.setenv("POSTGRES_URL", "postgresql://local/test")
+    monkeypatch.setattr("backend.ingestion.indexer.get_vector_store", lambda: store)
+
+    docs = agent_graph._retrieve_from_pgvector("hypertension guideline", owner_user_id="user-123")
+
+    assert docs[0].metadata["chunk_id"] == "upload-1"
+    assert docs[0].metadata["retrieval_score"] == 0.18
+    assert store.filters == [{"owner_user_id": "user-123"}]
 
 
 def test_graph_tool_path_skips_retriever(monkeypatch) -> None:

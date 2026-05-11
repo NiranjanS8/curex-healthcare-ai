@@ -7,13 +7,14 @@ import csv
 import json
 import logging
 import os
+import tempfile
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -40,15 +41,18 @@ from backend.auth import (
     token_response,
 )
 from backend.generation.prompts import format_citations
+from backend.ingestion.indexer import index_uploaded_document
 
 
 console = Console()
 DEFAULT_EVAL_RESULTS_PATH = Path("eval_results.csv")
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 30.0
 DEFAULT_RATE_LIMIT_PER_MINUTE = 60
+DEFAULT_UPLOAD_LIMIT_BYTES = 10 * 1024 * 1024
 logger = logging.getLogger("healthcare_rag.api")
 AgentRunner = Callable[[AgentState], AgentState]
 ContextPersister = Callable[[str, list[BaseMessage]], Any]
+DocumentIndexer = Callable[[Path, AuthUser], dict[str, Any]]
 
 
 class ChatRequest(BaseModel):
@@ -60,10 +64,20 @@ class NewSessionResponse(BaseModel):
     session_id: str
 
 
+class DocumentIngestResponse(BaseModel):
+    filename: str
+    docs_loaded: int
+    chunks_indexed: int
+    batches: int
+    elapsed_seconds: float
+    estimated_cost_usd: float
+
+
 def create_app(
     *,
     agent_runner: AgentRunner | None = None,
     context_persister: ContextPersister | None = None,
+    document_indexer: DocumentIndexer | None = None,
     request_timeout_seconds: float | None = None,
     agent_timeout_seconds: float | None = None,
     rate_limit_per_minute: int | None = None,
@@ -79,6 +93,7 @@ def create_app(
     init_auth_db(auth_db_path)
     app.state.agent_runner = agent_runner or _run_agent_with_tracking
     app.state.context_persister = context_persister or persist_conversation_context
+    app.state.document_indexer = document_indexer or _index_uploaded_document_for_user
     app.state.request_timeout_seconds = float(
         request_timeout_seconds
         if request_timeout_seconds is not None
@@ -197,6 +212,25 @@ def create_app(
         _ = current_user
         return load_latest_eval_metrics()
 
+    @app.post("/documents/upload", response_model=DocumentIngestResponse)
+    async def upload_document(
+        request: Request,
+        file: UploadFile = File(...),
+        current_user: AuthUser = Depends(get_current_user),
+    ) -> DocumentIngestResponse:
+        saved_path = await _save_upload(file)
+        try:
+            result = await asyncio.to_thread(request.app.state.document_indexer, saved_path, current_user)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        finally:
+            saved_path.unlink(missing_ok=True)
+            try:
+                saved_path.parent.rmdir()
+            except OSError:
+                logger.warning("Upload temp directory cleanup skipped", extra={"path": str(saved_path.parent)})
+        return DocumentIngestResponse(**result)
+
     @app.post("/chat")
     async def chat(
         payload: ChatRequest,
@@ -228,6 +262,33 @@ def _client_key(request: Request) -> str:
 
 def scoped_memory_session_id(user: AuthUser, session_id: str) -> str:
     return f"user:{user.user_id}:session:{session_id}"
+
+
+def _index_uploaded_document_for_user(path: Path, user: AuthUser) -> dict[str, Any]:
+    return index_uploaded_document(path, owner_user_id=user.user_id)
+
+
+async def _save_upload(upload: UploadFile) -> Path:
+    raw_name = Path(upload.filename or "upload.txt").name
+    suffix = Path(raw_name).suffix.lower()
+    if suffix not in {".pdf", ".txt", ".md"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF, TXT, and MD uploads are supported.",
+        )
+
+    data = await upload.read()
+    await upload.close()
+    if len(data) > int(os.getenv("DOCUMENT_UPLOAD_LIMIT_BYTES", DEFAULT_UPLOAD_LIMIT_BYTES)):
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Uploaded document is too large.",
+        )
+
+    temp_dir = Path(tempfile.mkdtemp(prefix="curex_upload_"))
+    saved_path = temp_dir / raw_name
+    saved_path.write_bytes(data)
+    return saved_path
 
 
 def _log_request(request: Request, response: Response, request_id: str, elapsed_ms: float) -> None:
@@ -294,6 +355,7 @@ async def _chat_event_stream(
     state: AgentState = {
         "query": payload.message,
         "session_id": scoped_session_id,
+        "user_id": current_user.user_id,
         "messages": [*memory.get("session_messages", []), user_message],
     }
     if memory.get("system_message") is not None:

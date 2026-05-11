@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from backend.ingestion import loaders
 
 
@@ -155,3 +157,22 @@ def test_load_all_orchestrates_sources(monkeypatch, tmp_path: Path) -> None:
 
     assert docs == [pdf_doc, pubmed_doc]
     assert loaders.Entrez.email == "engineer@example.com"
+
+
+def test_load_uploaded_text_file(tmp_path: Path) -> None:
+    note_path = tmp_path / "diabetes_note.txt"
+    note_path.write_text("Metformin is commonly used for type 2 diabetes.", encoding="utf-8")
+
+    documents = loaders.load_uploaded_file(str(note_path))
+
+    assert len(documents) == 1
+    assert documents[0].page_content == "Metformin is commonly used for type 2 diabetes."
+    assert documents[0].metadata["doc_type"] == "clinical_note"
+
+
+def test_load_uploaded_file_rejects_unsupported_suffix(tmp_path: Path) -> None:
+    csv_path = tmp_path / "source.csv"
+    csv_path.write_text("drug,evidence", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Only PDF, TXT, and MD"):
+        loaders.load_uploaded_file(str(csv_path))

@@ -97,6 +97,41 @@ def load_pdf(path: str) -> list[Document]:
     return documents
 
 
+def load_text_file(path: str) -> list[Document]:
+    """Load a plain-text clinical note or markdown guideline as a source document."""
+
+    text_path = Path(path)
+    content = text_path.read_text(encoding="utf-8").strip()
+    if not content:
+        return []
+
+    return [
+        Document(
+            page_content=content,
+            metadata={
+                "source": str(text_path),
+                "doc_type": "clinical_note",
+                "specialty": "unknown",
+                "date": _file_date(text_path),
+                "title": text_path.stem.replace("_", " ").replace("-", " ").strip().title(),
+                "section": "body",
+            },
+        )
+    ]
+
+
+def load_uploaded_file(path: str) -> list[Document]:
+    """Load a supported uploaded healthcare document."""
+
+    upload_path = Path(path)
+    suffix = upload_path.suffix.lower()
+    if suffix == ".pdf":
+        return load_pdf(str(upload_path))
+    if suffix in {".txt", ".md"}:
+        return load_text_file(str(upload_path))
+    raise ValueError("Only PDF, TXT, and MD uploads are supported.")
+
+
 def _article_id(article: dict[str, Any]) -> str:
     citation = article.get("MedlineCitation", {})
     pmid = citation.get("PMID", "")

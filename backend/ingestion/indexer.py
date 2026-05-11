@@ -21,7 +21,7 @@ from rich.table import Table
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from backend.ingestion.chunker import chunk_all
-from backend.ingestion.loaders import load_all
+from backend.ingestion.loaders import load_all, load_uploaded_file
 
 
 DEFAULT_COLLECTION_NAME = "healthcare_rag_chunks"
@@ -202,6 +202,38 @@ def run_ingestion_pipeline(
         "docs_loaded": len(docs),
         "chunks_indexed": upsert_result["chunks_indexed"],
         "batches": upsert_result["batches"],
+        "elapsed_seconds": elapsed,
+        "estimated_cost_usd": estimated_cost,
+    }
+
+
+def index_uploaded_document(
+    path: str | Path,
+    *,
+    owner_user_id: str,
+    vector_store: VectorStore | None = None,
+    batch_size: int = 100,
+) -> dict[str, Any]:
+    """Chunk and index one uploaded document into pgvector with owner metadata."""
+
+    started_at = time.perf_counter()
+    upload_path = Path(path)
+    docs = load_uploaded_file(str(upload_path))
+    chunks = chunk_all(docs)
+    for chunk in chunks:
+        chunk.metadata["owner_user_id"] = owner_user_id
+        chunk.metadata["uploaded_filename"] = upload_path.name
+
+    upsert_result = batch_upsert(chunks, vector_store=vector_store, batch_size=batch_size)
+    elapsed = time.perf_counter() - started_at
+    estimated_cost = _estimate_embedding_cost(chunks)
+
+    return {
+        "filename": upload_path.name,
+        "docs_loaded": len(docs),
+        "chunks_indexed": upsert_result["chunks_indexed"],
+        "batches": upsert_result["batches"],
+        "ids": upsert_result["ids"],
         "elapsed_seconds": elapsed,
         "estimated_cost_usd": estimated_cost,
     }

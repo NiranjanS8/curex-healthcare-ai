@@ -47,6 +47,7 @@ class AgentState(TypedDict):
     faithfulness_score: NotRequired[float]
     unsupported_claims: NotRequired[list[str]]
     session_id: str
+    user_id: NotRequired[str]
     faithfulness_retries: NotRequired[int]
 
 
@@ -87,8 +88,36 @@ def query_router(state: AgentState) -> dict:
 
 def retriever(state: AgentState) -> dict:
     configured_retriever = get_retriever()
-    docs = configured_retriever.invoke(state["query"]) if configured_retriever is not None else []
+    docs = (
+        configured_retriever.invoke(state["query"])
+        if configured_retriever is not None
+        else _retrieve_from_pgvector(state["query"], owner_user_id=state.get("user_id"))
+    )
     return {"retrieved_docs": docs}
+
+
+def _retrieve_from_pgvector(query: str, *, owner_user_id: str | None = None) -> list[Document]:
+    if not os.getenv("POSTGRES_URL"):
+        return []
+
+    from backend.ingestion.indexer import get_vector_store
+
+    store = get_vector_store()
+    top_k = int(os.getenv("RETRIEVAL_TOP_K", "5"))
+    metadata_filter = {"owner_user_id": owner_user_id} if owner_user_id else None
+
+    try:
+        if hasattr(store, "similarity_search_with_score"):
+            results = store.similarity_search_with_score(query, k=top_k, filter=metadata_filter)
+            return [
+                Document(page_content=doc.page_content, metadata={**doc.metadata, "retrieval_score": float(score)})
+                for doc, score in results
+            ]
+        return list(store.similarity_search(query, k=top_k, filter=metadata_filter))
+    except TypeError:
+        if owner_user_id:
+            return []
+        return list(store.similarity_search(query, k=top_k))
 
 
 def tool_executor(state: AgentState) -> dict:
