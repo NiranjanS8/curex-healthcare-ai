@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, Menu, X } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowRight,
+  BookOpenCheck,
+  Database,
+  Menu,
+  ShieldCheck,
+  Stethoscope,
+  X,
+} from 'lucide-react'
 import { ChatInput } from './components/ChatInput'
 import { ChatMessage } from './components/ChatMessage'
 import { CitationCard } from './components/CitationCard'
@@ -8,83 +17,12 @@ import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
-const INITIAL_MESSAGES = [
-  {
-    id: '1',
-    role: 'user',
-    content: 'What are the current guidelines for managing type 2 diabetes in adults?',
-    timestamp: '10:23 AM',
-  },
-  {
-    id: '2',
-    role: 'assistant',
-    content:
-      'Based on the latest clinical guidelines, the management of type 2 diabetes in adults follows a comprehensive approach:\n\n1. Lifestyle Modifications: Diet and exercise remain the cornerstone of treatment. A Mediterranean-style diet with emphasis on whole grains, vegetables, and lean proteins is recommended.\n\n2. Metformin: First-line pharmacological therapy for most patients, unless contraindicated. Starting dose is typically 500mg once or twice daily, titrated based on tolerance and glycemic control.\n\n3. Additional Medications: If HbA1c targets are not met after 3 months, consider adding:\n   - GLP-1 receptor agonists for patients with cardiovascular disease\n   - SGLT2 inhibitors for those with heart failure or chronic kidney disease\n   - DPP-4 inhibitors as alternatives\n\n4. Monitoring: Regular HbA1c testing every 3-6 months, with target typically <7% for most adults, though individualized based on patient factors.\n\nThese recommendations are based on evidence from multiple large-scale trials and expert consensus.',
-    citations: [
-      {
-        id: 'cite-1',
-        source: 'Clinical Guideline',
-        docType: 'Clinical Guideline',
-        chunkId: 'abc123',
-      },
-      {
-        id: 'cite-2',
-        source: 'Research Paper',
-        docType: 'Research Paper',
-        chunkId: 'def456',
-      },
-    ],
-    faithfulnessScore: 0.92,
-    timestamp: '10:23 AM',
-  },
-]
-
-const INITIAL_SESSIONS = [
-  { id: 'session-1', title: 'Type 2 Diabetes Management', timestamp: 'Today, 10:23 AM' },
-  { id: 'session-2', title: 'Hypertension Treatment Options', timestamp: 'Yesterday, 3:45 PM' },
-  { id: 'session-3', title: 'Asthma Guidelines Update', timestamp: 'May 9, 2:15 PM' },
-  { id: 'session-4', title: 'Antibiotic Resistance Patterns', timestamp: 'May 8, 11:30 AM' },
-]
-
 const DEFAULT_METRICS = [
-  { name: 'Faithfulness', value: 0.92, level: 'high' },
-  { name: 'Answer Relevancy', value: 0.88, level: 'high' },
-  { name: 'Context Precision', value: 0.75, level: 'medium' },
-  { name: 'Context Recall', value: 0.81, level: 'high' },
+  { name: 'Faithfulness', value: null, level: 'unknown' },
+  { name: 'Answer Relevancy', value: null, level: 'unknown' },
+  { name: 'Context Precision', value: null, level: 'unknown' },
+  { name: 'Context Recall', value: null, level: 'unknown' },
 ]
-
-const INITIAL_CITATIONS = {
-  'cite-1': {
-    id: 'cite-1',
-    title: 'Standards of Medical Care in Diabetes 2026',
-    docType: 'Clinical Guideline',
-    date: 'Jan 2026',
-    specialty: 'Endocrinology',
-    excerpt:
-      'Metformin, if not contraindicated and if tolerated, is the preferred initial pharmacological agent for type 2 diabetes. For patients with established atherosclerotic cardiovascular disease, heart failure, or chronic kidney disease, early addition of agents proven to reduce major adverse cardiovascular events or CKD progression should be considered independent of baseline HbA1c or individualized HbA1c target.',
-    source: 'American Diabetes Association',
-    metadata: {
-      authors: 'ADA Professional Practice Committee',
-      journal: 'Diabetes Care, Volume 49, Supplement 1',
-      doi: '10.2337/dc26-S001',
-    },
-  },
-  'cite-2': {
-    id: 'cite-2',
-    title: 'Efficacy and Safety of GLP-1 Receptor Agonists in Type 2 Diabetes',
-    docType: 'Research Paper',
-    date: 'Dec 2025',
-    specialty: 'Endocrinology',
-    excerpt:
-      'GLP-1 receptor agonists demonstrated significant reductions in HbA1c and body weight compared to placebo. Cardiovascular outcomes were favorable, with reductions in major adverse cardiovascular events.',
-    source: 'The Lancet',
-    metadata: {
-      authors: 'Chen M, Wang Y, Liu X, et al.',
-      journal: 'The Lancet Diabetes & Endocrinology',
-      doi: '10.1016/S2213-8587(25)00234-5',
-    },
-  },
-}
 
 function nowLabel() {
   return new Date().toLocaleTimeString('en-US', {
@@ -99,15 +37,117 @@ function metricLevel(value) {
   return 'low'
 }
 
+function sessionTitleFromMessage(message) {
+  const cleaned = message.trim().replace(/\s+/g, ' ')
+  if (!cleaned) return 'Healthcare Conversation'
+  return cleaned.length > 42 ? `${cleaned.slice(0, 42)}...` : cleaned
+}
+
+function LandingPage({ metrics, onStart }) {
+  return (
+    <main className="landing-page">
+      <nav className="landing-nav" aria-label="Primary">
+        <div className="brand-mark">
+          <span>CX</span>
+          <strong>CureX</strong>
+        </div>
+        <button type="button" className="nav-action" onClick={onStart}>
+          Open assistant
+          <ArrowRight size={16} />
+        </button>
+      </nav>
+
+      <section className="landing-hero">
+        <div className="hero-copy">
+          <p className="eyebrow">Healthcare RAG Assistant</p>
+          <h1>Evidence-grounded answers for clinical research questions.</h1>
+          <p className="hero-lede">
+            CureX combines retrieval, citations, safety checks, and faithfulness scoring so medical
+            information stays traceable to the source material.
+          </p>
+          <div className="hero-actions">
+            <button type="button" className="primary-landing-action" onClick={onStart}>
+              Start a session
+              <ArrowRight size={18} />
+            </button>
+            <a href="#how-it-works" className="secondary-landing-action">
+              View workflow
+            </a>
+          </div>
+        </div>
+
+        <div className="hero-console" aria-label="CureX workflow preview">
+          <div className="console-header">
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="console-body">
+            <div className="pipeline-row">
+              <Database size={18} />
+              <span>Retrieve medical context from pgvector</span>
+            </div>
+            <div className="pipeline-row">
+              <BookOpenCheck size={18} />
+              <span>Rank evidence and attach citations</span>
+            </div>
+            <div className="pipeline-row">
+              <ShieldCheck size={18} />
+              <span>Apply safety and faithfulness checks</span>
+            </div>
+            <div className="answer-preview">
+              <small>Assistant response contract</small>
+              <p>Answer only when retrieved evidence supports the claim.</p>
+              <span>[Source: title, chunk id]</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-metrics" aria-label="Evaluation metrics">
+        {metrics.map((metric) => (
+          <div key={metric.name} className="landing-metric">
+            <span>{metric.name}</span>
+            <strong>{metric.value === null ? '--' : `${(metric.value * 100).toFixed(0)}%`}</strong>
+          </div>
+        ))}
+      </section>
+
+      <section id="how-it-works" className="landing-bands">
+        <article>
+          <Stethoscope size={22} />
+          <h2>Built for healthcare questions</h2>
+          <p>Routes intent, recalls session context, and keeps responses informational.</p>
+        </article>
+        <article>
+          <Database size={22} />
+          <h2>Local vector retrieval</h2>
+          <p>Uses pgvector-backed retrieval with reranking and cited source chunks.</p>
+        </article>
+        <article>
+          <ShieldCheck size={22} />
+          <h2>Safety-first generation</h2>
+          <p>Flags unsafe requests and scores whether each answer is grounded.</p>
+        </article>
+      </section>
+
+      <footer className="landing-footer">
+        <AlertCircle size={16} />
+        <span>For informational purposes only. Not a substitute for professional medical advice.</span>
+      </footer>
+    </main>
+  )
+}
+
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [activeSessionId, setActiveSessionId] = useState('session-1')
+  const [activeSessionId, setActiveSessionId] = useState(null)
   const [selectedCitationId, setSelectedCitationId] = useState(null)
-  const [messages, setMessages] = useState(INITIAL_MESSAGES)
-  const [sessions, setSessions] = useState(INITIAL_SESSIONS)
+  const [messages, setMessages] = useState([])
+  const [sessions, setSessions] = useState([])
   const [metrics, setMetrics] = useState(DEFAULT_METRICS)
-  const [citationDetails, setCitationDetails] = useState(INITIAL_CITATIONS)
+  const [citationDetails, setCitationDetails] = useState({})
   const chatEndRef = useRef(null)
 
   useEffect(() => {
@@ -122,8 +162,10 @@ function App() {
         if (cancelled || !payload?.metrics) return
         const nextMetrics = DEFAULT_METRICS.map((metric) => {
           const key = metric.name.toLowerCase().replaceAll(' ', '_')
-          const value = payload.metrics[key] ?? metric.value
-          return { ...metric, value, level: metricLevel(value) }
+          const value = payload.metrics[key]
+          return value === undefined
+            ? metric
+            : { ...metric, value, level: metricLevel(value) }
         })
         setMetrics(nextMetrics)
       })
@@ -133,8 +175,8 @@ function App() {
     }
   }, [])
 
-  const handleNewSession = async () => {
-    let sessionId = `session-new-${Date.now()}`
+  const createSession = async () => {
+    let sessionId = `session-${Date.now()}`
     try {
       const response = await fetch(`${API_BASE_URL}/session/new`, { method: 'POST' })
       if (response.ok) {
@@ -142,11 +184,17 @@ function App() {
         sessionId = payload.session_id || sessionId
       }
     } catch {
-      // Local design preview still works when the API is not running.
+      // A local session lets the interface remain usable while the API starts.
     }
+    return sessionId
+  }
+
+  const handleNewSession = async () => {
+    const sessionId = await createSession()
     setMessages([])
     setActiveSessionId(sessionId)
     setSelectedCitationId(null)
+    setCitationDetails({})
     setSessions((current) => [
       { id: sessionId, title: 'New Healthcare Conversation', timestamp: 'Just now' },
       ...current,
@@ -154,9 +202,25 @@ function App() {
     setIsMobileMenuOpen(false)
   }
 
-  const handleSelectSession = (id) => {
+  const handleSelectSession = async (id) => {
     setActiveSessionId(id)
+    setSelectedCitationId(null)
     setIsMobileMenuOpen(false)
+    try {
+      const response = await fetch(`${API_BASE_URL}/session/${id}/history`)
+      if (!response.ok) return
+      const payload = await response.json()
+      setMessages(
+        (payload.messages || []).map((message, index) => ({
+          id: `${id}-${index}`,
+          role: message.type === 'human' ? 'user' : 'assistant',
+          content: message.content,
+          timestamp: '',
+        })),
+      )
+    } catch {
+      setMessages([])
+    }
   }
 
   const handleCitationClick = (citationId) => {
@@ -201,11 +265,11 @@ function App() {
     )
   }
 
-  const sendViaApi = async (content, assistantId) => {
+  const sendViaApi = async (sessionId, content, assistantId) => {
     const response = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: activeSessionId, message: content }),
+      body: JSON.stringify({ session_id: sessionId, message: content }),
     })
     if (!response.ok || !response.body) throw new Error('Unable to stream response')
 
@@ -244,31 +308,24 @@ function App() {
     }
   }
 
-  const sendFallbackResponse = async (assistantId) => {
-    await new Promise((resolve) => setTimeout(resolve, 700))
-    setMessages((current) =>
-      current.map((message) =>
-        message.id === assistantId
-          ? {
-              ...message,
-              content:
-                "Thank you for your question. I'm analyzing the latest medical literature and clinical guidelines to provide evidence-based information. This is a local preview response because the backend API is not currently reachable.",
-              citations: [
-                {
-                  id: 'cite-1',
-                  source: 'Clinical Guideline',
-                  docType: 'Clinical Guideline',
-                  chunkId: 'abc123',
-                },
-              ],
-              faithfulnessScore: 0.87,
-            }
-          : message,
-      ),
-    )
-  }
-
   const handleSendMessage = async (content) => {
+    const sessionId = activeSessionId || (await createSession())
+    if (!activeSessionId) {
+      setActiveSessionId(sessionId)
+      setSessions((current) => [
+        { id: sessionId, title: sessionTitleFromMessage(content), timestamp: 'Just now' },
+        ...current,
+      ])
+    } else {
+      setSessions((current) =>
+        current.map((session) =>
+          session.id === sessionId && session.title === 'New Healthcare Conversation'
+            ? { ...session, title: sessionTitleFromMessage(content) }
+            : session,
+        ),
+      )
+    }
+
     const userMessage = {
       id: `msg-${Date.now()}`,
       role: 'user',
@@ -289,15 +346,29 @@ function App() {
     setSelectedCitationId(null)
 
     try {
-      await sendViaApi(content, assistantId)
+      await sendViaApi(sessionId, content, assistantId)
     } catch {
-      await sendFallbackResponse(assistantId)
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantId
+            ? {
+                ...message,
+                content:
+                  'Unable to connect to the healthcare assistant API. Start the backend service and try again.',
+              }
+            : message,
+        ),
+      )
     } finally {
       setIsLoading(false)
     }
   }
 
   const selectedCitation = selectedCitationId ? citationDetails[selectedCitationId] : null
+
+  if (!activeSessionId) {
+    return <LandingPage metrics={metrics} onStart={handleNewSession} />
+  }
 
   return (
     <div className="app-shell">

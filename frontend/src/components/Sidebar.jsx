@@ -3,6 +3,7 @@ import { Activity, MessageSquare, Plus } from 'lucide-react'
 function getMetricClass(level) {
   if (level === 'high') return 'metric-high'
   if (level === 'medium') return 'metric-medium'
+  if (level === 'low') return 'metric-low'
   return 'metric-low'
 }
 
@@ -21,7 +22,7 @@ export function Sidebar({ sessions, activeSessionId, metrics, onNewSession, onSe
         <div className="session-list-inner">
           <h3>Recent Sessions</h3>
           <div className="session-list">
-            {sessions.map((session) => (
+          {sessions.map((session) => (
               <button
                 type="button"
                 key={session.id}
@@ -35,6 +36,9 @@ export function Sidebar({ sessions, activeSessionId, metrics, onNewSession, onSe
                 </span>
               </button>
             ))}
+            {sessions.length === 0 && (
+              <p className="empty-session-copy">Sessions will appear after you start a chat.</p>
+            )}
           </div>
         </div>
       </div>
@@ -49,7 +53,7 @@ export function Sidebar({ sessions, activeSessionId, metrics, onNewSession, onSe
             <div key={metric.name} className="metric-row">
               <span>{metric.name}</span>
               <strong className={getMetricClass(metric.level)}>
-                {(metric.value * 100).toFixed(0)}%
+                {metric.value === null ? '--' : `${(metric.value * 100).toFixed(0)}%`}
               </strong>
             </div>
           ))}
