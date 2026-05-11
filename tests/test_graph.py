@@ -7,6 +7,7 @@ from langchain_core.messages import HumanMessage
 
 from backend.agent import graph as agent_graph
 from backend.agent.router import QueryIntent
+from backend.generation.safety import SafetyResult
 
 
 class FakeRetriever:
@@ -17,6 +18,10 @@ class FakeRetriever:
                 metadata={"title": "Clinical Source", "chunk_id": "chunk-1"},
             )
         ]
+
+
+def safe_query(query: str) -> SafetyResult:
+    return SafetyResult(safe=True, reason="ok", modified_query=query)
 
 
 def test_route_after_query_router_uses_intent_route() -> None:
@@ -45,6 +50,7 @@ def test_faithfulness_route_retries_at_most_twice() -> None:
 
 
 def test_graph_retrieval_path_invokes_retriever(monkeypatch) -> None:
+    monkeypatch.setattr(agent_graph, "pre_check", safe_query)
     monkeypatch.setattr(
         agent_graph,
         "classify_intent",
@@ -70,6 +76,7 @@ def test_graph_retrieval_path_invokes_retriever(monkeypatch) -> None:
 
 
 def test_graph_tool_path_skips_retriever(monkeypatch) -> None:
+    monkeypatch.setattr(agent_graph, "pre_check", safe_query)
     monkeypatch.setattr(
         agent_graph,
         "classify_intent",
@@ -91,6 +98,25 @@ def test_graph_tool_path_skips_retriever(monkeypatch) -> None:
 
     assert result["tool_results"][0]["tool"] == "check_drug_interactions"
     assert "medical tool" in result["response"]
+
+
+def test_graph_blocks_unsafe_query(monkeypatch) -> None:
+    monkeypatch.setattr(
+        agent_graph,
+        "pre_check",
+        lambda query: SafetyResult(safe=False, reason="Blocked for safety.", modified_query=""),
+    )
+
+    result = agent_graph.graph.invoke(
+        {
+            "query": "unsafe",
+            "session_id": "session-1",
+            "messages": [],
+        }
+    )
+
+    assert result["intent"].category == "out_of_scope"
+    assert "Blocked for safety." in result["response"]
 
 
 def test_save_agent_graph_png_writes_file(tmp_path: Path) -> None:

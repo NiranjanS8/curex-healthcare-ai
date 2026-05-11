@@ -14,6 +14,7 @@ from rich.table import Table
 
 from backend.agent.router import QueryIntent, classify_intent, route
 from backend.agent.tools import check_drug_interactions
+from backend.generation.safety import post_check, pre_check
 
 
 class AgentState(TypedDict):
@@ -22,6 +23,7 @@ class AgentState(TypedDict):
     intent: NotRequired[QueryIntent]
     retrieved_docs: NotRequired[list[Document]]
     tool_results: NotRequired[list[dict]]
+    safety_result: NotRequired[dict]
     response: NotRequired[str]
     faithfulness_score: NotRequired[float]
     session_id: str
@@ -47,8 +49,20 @@ def run_drug_interaction_tool(drug_names: list[str]) -> dict:
 
 
 def query_router(state: AgentState) -> dict:
-    intent = classify_intent(state["query"])
-    return {"intent": intent}
+    safety_result = pre_check(state["query"])
+    if not safety_result.safe:
+        intent = QueryIntent(category="out_of_scope", confidence=1.0, entities=[])
+        return {
+            "intent": intent,
+            "safety_result": safety_result.model_dump(),
+            "response": safety_result.reason,
+        }
+    intent = classify_intent(safety_result.modified_query)
+    return {
+        "intent": intent,
+        "query": safety_result.modified_query,
+        "safety_result": safety_result.model_dump(),
+    }
 
 
 def retriever(state: AgentState) -> dict:
@@ -94,17 +108,21 @@ def response_generator(state: AgentState) -> dict:
         response = "I do not have enough retrieved medical context to answer this safely."
 
     messages = list(state.get("messages", []))
-    messages.append(AIMessage(content=response))
-    return {"response": response, "messages": messages}
+    checked_response = post_check(response)
+    messages.append(AIMessage(content=checked_response))
+    return {"response": checked_response, "messages": messages}
 
 
 def safety_check(state: AgentState) -> dict:
     intent = state.get("intent")
     if intent and intent.category == "out_of_scope":
-        response = "I can only help with educational healthcare questions."
+        response = post_check(state.get("response") or "I can only help with educational healthcare questions.")
         messages = list(state.get("messages", []))
         messages.append(AIMessage(content=response))
         return {"response": response, "messages": messages, "faithfulness_score": 1.0}
+    if state.get("response"):
+        response = post_check(state["response"])
+        return {"response": response}
     return {}
 
 
