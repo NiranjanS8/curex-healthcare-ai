@@ -15,6 +15,8 @@ from rank_bm25 import BM25Okapi
 from rich.console import Console
 from rich.table import Table
 
+from backend.retrieval.reranker import CrossEncoderReranker
+
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 
@@ -50,9 +52,11 @@ class HybridRetriever(BaseRetriever):
     corpus: list[Document] = Field(default_factory=list)
     dense_k: int = 20
     bm25_k: int = 20
-    top_k: int = 10
+    fusion_k: int = 20
+    top_k: int = 5
     rrf_k: int = 60
     log_results: bool = True
+    reranker: CrossEncoderReranker | None = None
 
     _bm25: BM25Okapi | None = PrivateAttr(default=None)
     _tokenized_corpus: list[list[str]] = PrivateAttr(default_factory=list)
@@ -119,7 +123,7 @@ class HybridRetriever(BaseRetriever):
         )
 
         fused_docs: list[Document] = []
-        for record in fused_records[: self.top_k]:
+        for record in fused_records[: self.fusion_k]:
             doc = record["doc"]
             metadata = dict(doc.metadata)
             metadata["retrieval_score"] = record["rrf_score"]
@@ -166,4 +170,6 @@ class HybridRetriever(BaseRetriever):
         bm25_results = self._bm25_search(query)
         docs = self._fuse(dense_results, bm25_results)
         self._log_score_breakdown(query, docs)
-        return docs
+        if self.reranker is not None:
+            return self.reranker.rerank(query, docs, top_k=self.top_k)
+        return docs[: self.top_k]
