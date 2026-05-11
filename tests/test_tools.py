@@ -114,6 +114,23 @@ def test_lookup_icd10_returns_top_matches(monkeypatch) -> None:
     }
 
 
+def test_get_json_retries_transient_request_errors(monkeypatch) -> None:
+    calls = {"count": 0}
+
+    def flaky_get(url, params=None, timeout=None):
+        calls["count"] += 1
+        if calls["count"] < 3:
+            raise tools.requests.ConnectionError("temporary outage")
+        return FakeResponse({"ok": True})
+
+    monkeypatch.setattr(tools.requests, "get", flaky_get)
+
+    result = tools._get_json("https://example.test")
+
+    assert result == {"ok": True}
+    assert calls["count"] == 3
+
+
 def test_tools_registry_and_lookup() -> None:
     names = {registered_tool.name for registered_tool in tools.TOOLS}
 

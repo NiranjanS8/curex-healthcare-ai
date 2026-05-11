@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import time
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -29,6 +30,11 @@ def fake_agent_runner(state):
     }
 
 
+def slow_agent_runner(state):
+    time.sleep(0.05)
+    return {**state, "response": "late response", "retrieved_docs": [], "faithfulness_score": 1.0}
+
+
 def test_health_and_new_session() -> None:
     client = TestClient(create_app(agent_runner=fake_agent_runner, context_persister=lambda *_: None))
 
@@ -39,6 +45,34 @@ def test_health_and_new_session() -> None:
     assert health.json()["status"] == "ok"
     assert session.status_code == 200
     assert session.json()["session_id"]
+    assert health.headers["x-request-id"]
+
+
+def test_request_id_header_accepts_caller_value() -> None:
+    client = TestClient(create_app(agent_runner=fake_agent_runner, context_persister=lambda *_: None))
+
+    response = client.get("/health", headers={"X-Request-ID": "req-test-123"})
+
+    assert response.status_code == 200
+    assert response.headers["x-request-id"] == "req-test-123"
+
+
+def test_rate_limit_returns_429_with_retry_after() -> None:
+    client = TestClient(
+        create_app(
+            agent_runner=fake_agent_runner,
+            context_persister=lambda *_: None,
+            rate_limit_per_minute=1,
+        )
+    )
+
+    first = client.post("/session/new")
+    second = client.post("/session/new")
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.json()["error"] == "rate_limited"
+    assert second.headers["retry-after"]
 
 
 def test_chat_streams_tokens_done_payload_and_persists_history() -> None:
@@ -59,6 +93,25 @@ def test_chat_streams_tokens_done_payload_and_persists_history() -> None:
 
     history = client.get(f"/session/{session_id}/history").json()
     assert [message["type"] for message in history["messages"]] == ["human", "ai"]
+
+
+def test_chat_stream_reports_agent_timeout() -> None:
+    client = TestClient(
+        create_app(
+            agent_runner=slow_agent_runner,
+            context_persister=lambda *_: None,
+            request_timeout_seconds=1,
+            agent_timeout_seconds=0.001,
+        )
+    )
+
+    with client.stream("POST", "/chat", json={"session_id": "slow", "message": "hello"}) as response:
+        body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert "event: error" in body
+    assert "agent_timeout" in body
+    assert "data: [DONE]" in body
 
 
 def test_eval_metrics_returns_aggregate_scores(tmp_path: Path) -> None:

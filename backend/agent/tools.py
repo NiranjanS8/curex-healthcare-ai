@@ -7,13 +7,21 @@ from urllib.parse import quote
 
 import requests
 from langchain_core.tools import tool
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 
 RXNAV_BASE_URL = "https://rxnav.nlm.nih.gov/REST"
 ICD10_SEARCH_URL = "https://clinicaltables.nlm.nih.gov/api/icd10cm/v3/search"
 REQUEST_TIMEOUT_SECONDS = 10
+REQUEST_RETRY_ATTEMPTS = 3
 
 
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(REQUEST_RETRY_ATTEMPTS),
+    wait=wait_exponential(multiplier=0.25, min=0.25, max=2),
+    retry=retry_if_exception_type(requests.RequestException),
+)
 def _get_json(url: str, *, params: dict[str, Any] | None = None) -> dict | list:
     response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT_SECONDS)
     response.raise_for_status()

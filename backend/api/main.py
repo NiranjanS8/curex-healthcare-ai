@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import csv
 import json
+import logging
 import os
 import time
 from contextlib import asynccontextmanager
@@ -14,7 +15,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from pydantic import BaseModel, Field
 from rich.console import Console
@@ -33,6 +34,9 @@ from backend.generation.prompts import format_citations
 
 console = Console()
 DEFAULT_EVAL_RESULTS_PATH = Path("eval_results.csv")
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 30.0
+DEFAULT_RATE_LIMIT_PER_MINUTE = 60
+logger = logging.getLogger("healthcare_rag.api")
 AgentRunner = Callable[[AgentState], AgentState]
 ContextPersister = Callable[[str, list[BaseMessage]], Any]
 
@@ -50,6 +54,9 @@ def create_app(
     *,
     agent_runner: AgentRunner | None = None,
     context_persister: ContextPersister | None = None,
+    request_timeout_seconds: float | None = None,
+    agent_timeout_seconds: float | None = None,
+    rate_limit_per_minute: int | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -59,6 +66,22 @@ def create_app(
     app = FastAPI(title="Healthcare RAG Assistant API", version=__version__, lifespan=lifespan)
     app.state.agent_runner = agent_runner or _run_agent_with_tracking
     app.state.context_persister = context_persister or persist_conversation_context
+    app.state.request_timeout_seconds = float(
+        request_timeout_seconds
+        if request_timeout_seconds is not None
+        else os.getenv("API_REQUEST_TIMEOUT_SECONDS", DEFAULT_REQUEST_TIMEOUT_SECONDS)
+    )
+    app.state.agent_timeout_seconds = float(
+        agent_timeout_seconds
+        if agent_timeout_seconds is not None
+        else os.getenv("AGENT_RUN_TIMEOUT_SECONDS", app.state.request_timeout_seconds)
+    )
+    app.state.rate_limit_per_minute = int(
+        rate_limit_per_minute
+        if rate_limit_per_minute is not None
+        else os.getenv("API_RATE_LIMIT_PER_MINUTE", DEFAULT_RATE_LIMIT_PER_MINUTE)
+    )
+    app.state.rate_limit_windows = {}
 
     origins = [
         "http://localhost:5173",
@@ -74,14 +97,43 @@ def create_app(
     )
 
     @app.middleware("http")
-    async def log_requests(request: Request, call_next):
+    async def reliability_middleware(request: Request, call_next):
         started = time.perf_counter()
-        response = await call_next(request)
+        request_id = request.headers.get("x-request-id") or str(uuid4())
+        request.state.request_id = request_id
+        limited_response = _check_rate_limit(request, request_id)
+        if limited_response is not None:
+            elapsed_ms = (time.perf_counter() - started) * 1000
+            _log_request(request, limited_response, request_id, elapsed_ms)
+            return limited_response
+
+        try:
+            response = await asyncio.wait_for(
+                call_next(request),
+                timeout=request.app.state.request_timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            response = JSONResponse(
+                status_code=504,
+                content={
+                    "error": "request_timeout",
+                    "message": "The request exceeded the configured timeout.",
+                    "request_id": request_id,
+                },
+            )
+        except Exception:
+            logger.exception("Unhandled API request error", extra={"request_id": request_id})
+            response = JSONResponse(
+                status_code=500,
+                content={
+                    "error": "internal_server_error",
+                    "message": "Unexpected server error.",
+                    "request_id": request_id,
+                },
+            )
+        response.headers["X-Request-ID"] = request_id
         elapsed_ms = (time.perf_counter() - started) * 1000
-        console.log(
-            f"{request.method} {request.url.path} -> {response.status_code} "
-            f"({elapsed_ms:.1f} ms)"
-        )
+        _log_request(request, response, request_id, elapsed_ms)
         return response
 
     @app.get("/health")
@@ -110,12 +162,63 @@ def create_app(
                 payload,
                 request.app.state.agent_runner,
                 request.app.state.context_persister,
+                timeout_seconds=request.app.state.agent_timeout_seconds,
+                request_id=request.state.request_id,
             ),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     return app
+
+
+def _client_key(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",", 1)[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _log_request(request: Request, response: Response, request_id: str, elapsed_ms: float) -> None:
+    log_payload = {
+        "event": "api_request",
+        "request_id": request_id,
+        "method": request.method,
+        "path": request.url.path,
+        "status_code": response.status_code,
+        "latency_ms": round(elapsed_ms, 2),
+        "client": request.client.host if request.client else "unknown",
+    }
+    logger.info(json.dumps(log_payload, sort_keys=True))
+    console.print_json(data=log_payload)
+
+
+def _check_rate_limit(request: Request, request_id: str) -> Response | None:
+    limit = int(request.app.state.rate_limit_per_minute)
+    if limit <= 0 or request.url.path == "/health":
+        return None
+
+    now = time.time()
+    window_start = now - 60
+    key = _client_key(request)
+    windows: dict[str, list[float]] = request.app.state.rate_limit_windows
+    hits = [timestamp for timestamp in windows.get(key, []) if timestamp >= window_start]
+    if len(hits) >= limit:
+        retry_after = max(1, int(60 - (now - min(hits))))
+        response = JSONResponse(
+            status_code=429,
+            content={
+                "error": "rate_limited",
+                "message": "Too many requests. Please try again later.",
+                "request_id": request_id,
+            },
+        )
+        response.headers["Retry-After"] = str(retry_after)
+        response.headers["X-Request-ID"] = request_id
+        return response
+    hits.append(now)
+    windows[key] = hits
+    return None
 
 
 def _run_agent_with_tracking(state: AgentState) -> AgentState:
@@ -129,6 +232,9 @@ async def _chat_event_stream(
     payload: ChatRequest,
     agent_runner: AgentRunner,
     context_persister: ContextPersister,
+    *,
+    timeout_seconds: float,
+    request_id: str,
 ) -> AsyncIterator[str]:
     user_message = HumanMessage(content=payload.message)
     memory = get_memory(payload.session_id)
@@ -140,7 +246,27 @@ async def _chat_event_stream(
     if memory.get("system_message") is not None:
         state["messages"].insert(0, memory["system_message"])
 
-    result = await asyncio.to_thread(agent_runner, state)
+    try:
+        result = await asyncio.wait_for(asyncio.to_thread(agent_runner, state), timeout=timeout_seconds)
+    except asyncio.TimeoutError:
+        error_payload = {
+            "error": "agent_timeout",
+            "message": "The assistant run exceeded the configured timeout.",
+            "request_id": request_id,
+        }
+        yield f"event: error\ndata: {json.dumps(error_payload)}\n\n"
+        yield "data: [DONE]\n\n"
+        return
+    except Exception:
+        logger.exception("Chat stream failed", extra={"request_id": request_id})
+        error_payload = {
+            "error": "agent_error",
+            "message": "The assistant run failed.",
+            "request_id": request_id,
+        }
+        yield f"event: error\ndata: {json.dumps(error_payload)}\n\n"
+        yield "data: [DONE]\n\n"
+        return
     response_text = str(result.get("response") or "")
     retrieved_docs = result.get("retrieved_docs", [])
     citations = format_citations(retrieved_docs)
@@ -154,6 +280,7 @@ async def _chat_event_stream(
         "citations": citations,
         "faithfulness_score": faithfulness_score,
         "session_id": payload.session_id,
+        "request_id": request_id,
     }
     yield f"event: done\ndata: {json.dumps(done_payload)}\n\n"
     yield "data: [DONE]\n\n"
