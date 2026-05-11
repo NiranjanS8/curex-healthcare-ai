@@ -13,6 +13,7 @@ from rich.console import Console
 from rich.table import Table
 
 from backend.agent.router import QueryIntent, classify_intent, route
+from backend.agent.tools import check_drug_interactions
 
 
 class AgentState(TypedDict):
@@ -41,6 +42,10 @@ def get_retriever() -> BaseRetriever | None:
     return _RETRIEVER
 
 
+def run_drug_interaction_tool(drug_names: list[str]) -> dict:
+    return check_drug_interactions.invoke({"drug_names": drug_names})
+
+
 def query_router(state: AgentState) -> dict:
     intent = classify_intent(state["query"])
     return {"intent": intent}
@@ -54,6 +59,10 @@ def retriever(state: AgentState) -> dict:
 
 def tool_executor(state: AgentState) -> dict:
     intent = state["intent"]
+    if intent.category == "drug_interaction":
+        result = run_drug_interaction_tool(intent.entities)
+        return {"tool_results": [{"tool": "check_drug_interactions", "result": result}]}
+
     return {
         "tool_results": [
             {

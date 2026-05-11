@@ -75,6 +75,11 @@ def test_graph_tool_path_skips_retriever(monkeypatch) -> None:
         "classify_intent",
         lambda query: QueryIntent(category="drug_interaction", confidence=0.9, entities=["warfarin", "aspirin"]),
     )
+    monkeypatch.setattr(
+        agent_graph,
+        "run_drug_interaction_tool",
+        lambda drug_names: {"pairs": [], "resolved": {drug: drug for drug in drug_names}},
+    )
 
     result = agent_graph.graph.invoke(
         {
@@ -84,7 +89,7 @@ def test_graph_tool_path_skips_retriever(monkeypatch) -> None:
         }
     )
 
-    assert result["tool_results"][0]["intent"] == "drug_interaction"
+    assert result["tool_results"][0]["tool"] == "check_drug_interactions"
     assert "medical tool" in result["response"]
 
 
