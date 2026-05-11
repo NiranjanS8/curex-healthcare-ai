@@ -26,6 +26,7 @@ dependencies = [
     "rich",
     "graphviz",
     "mcp>=1.27.1",
+    "PyJWT>=2.12.1",
 ]
 
 [build-system]

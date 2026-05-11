@@ -11,6 +11,26 @@ from langchain_core.documents import Document
 from backend.api.main import create_app, load_latest_eval_metrics
 
 
+def auth_headers(client: TestClient, username: str = "doctor@example.com") -> dict[str, str]:
+    response = client.post(
+        "/auth/register",
+        json={"username": username, "password": "correct horse battery staple"},
+    )
+    assert response.status_code == 200
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+def make_client(tmp_path: Path, **kwargs) -> TestClient:
+    return TestClient(
+        create_app(
+            agent_runner=kwargs.pop("agent_runner", fake_agent_runner),
+            context_persister=kwargs.pop("context_persister", lambda *_: None),
+            auth_db_path=tmp_path / "auth.sqlite",
+            **kwargs,
+        )
+    )
+
+
 def fake_agent_runner(state):
     return {
         **state,
@@ -35,11 +55,12 @@ def slow_agent_runner(state):
     return {**state, "response": "late response", "retrieved_docs": [], "faithfulness_score": 1.0}
 
 
-def test_health_and_new_session() -> None:
-    client = TestClient(create_app(agent_runner=fake_agent_runner, context_persister=lambda *_: None))
+def test_health_and_new_session(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    headers = auth_headers(client)
 
     health = client.get("/health")
-    session = client.post("/session/new")
+    session = client.post("/session/new", headers=headers)
 
     assert health.status_code == 200
     assert health.json()["status"] == "ok"
@@ -48,8 +69,35 @@ def test_health_and_new_session() -> None:
     assert health.headers["x-request-id"]
 
 
-def test_request_id_header_accepts_caller_value() -> None:
-    client = TestClient(create_app(agent_runner=fake_agent_runner, context_persister=lambda *_: None))
+def test_auth_register_login_and_me(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+
+    register = client.post(
+        "/auth/register",
+        json={"username": "Clinician@Example.com", "password": "correct horse battery staple"},
+    )
+    login = client.post(
+        "/auth/login",
+        json={"username": "clinician@example.com", "password": "correct horse battery staple"},
+    )
+    me = client.get("/auth/me", headers={"Authorization": f"Bearer {login.json()['access_token']}"})
+
+    assert register.status_code == 200
+    assert login.status_code == 200
+    assert me.status_code == 200
+    assert me.json()["username"] == "clinician@example.com"
+
+
+def test_protected_endpoints_require_bearer_token(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+
+    response = client.post("/session/new")
+
+    assert response.status_code == 401
+
+
+def test_request_id_header_accepts_caller_value(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
 
     response = client.get("/health", headers={"X-Request-ID": "req-test-123"})
 
@@ -57,29 +105,32 @@ def test_request_id_header_accepts_caller_value() -> None:
     assert response.headers["x-request-id"] == "req-test-123"
 
 
-def test_rate_limit_returns_429_with_retry_after() -> None:
-    client = TestClient(
-        create_app(
-            agent_runner=fake_agent_runner,
-            context_persister=lambda *_: None,
-            rate_limit_per_minute=1,
-        )
-    )
+def test_rate_limit_returns_429_with_retry_after(tmp_path: Path) -> None:
+    client = make_client(tmp_path, rate_limit_per_minute=3)
+    headers = auth_headers(client)
 
-    first = client.post("/session/new")
-    second = client.post("/session/new")
+    first = client.post("/session/new", headers=headers)
+    second = client.post("/session/new", headers=headers)
+    third = client.post("/session/new", headers=headers)
 
     assert first.status_code == 200
-    assert second.status_code == 429
-    assert second.json()["error"] == "rate_limited"
-    assert second.headers["retry-after"]
+    assert second.status_code == 200
+    assert third.status_code == 429
+    assert third.json()["error"] == "rate_limited"
+    assert third.headers["retry-after"]
 
 
-def test_chat_streams_tokens_done_payload_and_persists_history() -> None:
-    client = TestClient(create_app(agent_runner=fake_agent_runner, context_persister=lambda *_: None))
+def test_chat_streams_tokens_done_payload_and_persists_history(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    headers = auth_headers(client)
     session_id = "api-test-session"
 
-    with client.stream("POST", "/chat", json={"session_id": session_id, "message": "Can I mix them?"}) as response:
+    with client.stream(
+        "POST",
+        "/chat",
+        headers=headers,
+        json={"session_id": session_id, "message": "Can I mix them?"},
+    ) as response:
         body = "".join(response.iter_text())
 
     assert response.status_code == 200
@@ -91,21 +142,52 @@ def test_chat_streams_tokens_done_payload_and_persists_history() -> None:
     assert done_payload["faithfulness_score"] == 0.91
     assert done_payload["citations"][0]["chunk_id"] == "drug-1"
 
-    history = client.get(f"/session/{session_id}/history").json()
+    history = client.get(f"/session/{session_id}/history", headers=headers).json()
     assert [message["type"] for message in history["messages"]] == ["human", "ai"]
 
 
-def test_chat_stream_reports_agent_timeout() -> None:
-    client = TestClient(
-        create_app(
-            agent_runner=slow_agent_runner,
-            context_persister=lambda *_: None,
-            request_timeout_seconds=1,
-            agent_timeout_seconds=0.001,
-        )
+def test_session_memory_is_user_scoped(tmp_path: Path) -> None:
+    persisted_session_ids: list[str] = []
+    client = make_client(
+        tmp_path,
+        context_persister=lambda session_id, messages: persisted_session_ids.append(session_id),
     )
+    first_user = auth_headers(client, "first@example.com")
+    second_user = auth_headers(client, "second@example.com")
+    session_id = "shared-session-id"
 
-    with client.stream("POST", "/chat", json={"session_id": "slow", "message": "hello"}) as response:
+    with client.stream(
+        "POST",
+        "/chat",
+        headers=first_user,
+        json={"session_id": session_id, "message": "Can I mix them?"},
+    ) as response:
+        _ = "".join(response.iter_text())
+
+    first_history = client.get(f"/session/{session_id}/history", headers=first_user).json()
+    second_history = client.get(f"/session/{session_id}/history", headers=second_user).json()
+
+    assert len(first_history["messages"]) == 2
+    assert second_history["messages"] == []
+    assert persisted_session_ids[0] != session_id
+    assert persisted_session_ids[0].endswith(f":session:{session_id}")
+
+
+def test_chat_stream_reports_agent_timeout(tmp_path: Path) -> None:
+    client = make_client(
+        tmp_path,
+        agent_runner=slow_agent_runner,
+        request_timeout_seconds=1,
+        agent_timeout_seconds=0.001,
+    )
+    headers = auth_headers(client)
+
+    with client.stream(
+        "POST",
+        "/chat",
+        headers=headers,
+        json={"session_id": "slow", "message": "hello"},
+    ) as response:
         body = "".join(response.iter_text())
 
     assert response.status_code == 200

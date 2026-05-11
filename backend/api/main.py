@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Callable
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -28,6 +28,16 @@ from backend.agent.memory import (
     get_memory,
     load_session_messages,
     persist_conversation_context,
+)
+from backend.auth import (
+    AuthRequest,
+    AuthUser,
+    TokenResponse,
+    authenticate_user,
+    create_user,
+    get_current_user,
+    init_auth_db,
+    token_response,
 )
 from backend.generation.prompts import format_citations
 
@@ -57,6 +67,7 @@ def create_app(
     request_timeout_seconds: float | None = None,
     agent_timeout_seconds: float | None = None,
     rate_limit_per_minute: int | None = None,
+    auth_db_path: str | Path | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -64,6 +75,8 @@ def create_app(
         yield
 
     app = FastAPI(title="Healthcare RAG Assistant API", version=__version__, lifespan=lifespan)
+    app.state.auth_db_path = auth_db_path
+    init_auth_db(auth_db_path)
     app.state.agent_runner = agent_runner or _run_agent_with_tracking
     app.state.context_persister = context_persister or persist_conversation_context
     app.state.request_timeout_seconds = float(
@@ -140,26 +153,60 @@ def create_app(
     async def health() -> dict[str, str]:
         return {"status": "ok", "version": __version__}
 
+    @app.post("/auth/register", response_model=TokenResponse)
+    async def register(payload: AuthRequest, request: Request) -> TokenResponse:
+        try:
+            user = create_user(payload.username, payload.password, db_path=request.app.state.auth_db_path)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        return token_response(user)
+
+    @app.post("/auth/login", response_model=TokenResponse)
+    async def login(payload: AuthRequest, request: Request) -> TokenResponse:
+        user = authenticate_user(payload.username, payload.password, db_path=request.app.state.auth_db_path)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid username or password.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return token_response(user)
+
+    @app.get("/auth/me")
+    async def me(current_user: AuthUser = Depends(get_current_user)) -> dict[str, str]:
+        return {"id": current_user.user_id, "username": current_user.username}
+
     @app.post("/session/new", response_model=NewSessionResponse)
-    async def new_session() -> NewSessionResponse:
+    async def new_session(current_user: AuthUser = Depends(get_current_user)) -> NewSessionResponse:
+        _ = current_user
         return NewSessionResponse(session_id=str(uuid4()))
 
     @app.get("/session/{session_id}/history")
-    async def session_history(session_id: str) -> dict[str, Any]:
+    async def session_history(
+        session_id: str,
+        current_user: AuthUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        scoped_session_id = scoped_memory_session_id(current_user, session_id)
         return {
             "session_id": session_id,
-            "messages": [_serialize_message(message) for message in load_session_messages(session_id)],
+            "messages": [_serialize_message(message) for message in load_session_messages(scoped_session_id)],
         }
 
     @app.get("/eval/metrics")
-    async def eval_metrics() -> dict[str, Any]:
+    async def eval_metrics(current_user: AuthUser = Depends(get_current_user)) -> dict[str, Any]:
+        _ = current_user
         return load_latest_eval_metrics()
 
     @app.post("/chat")
-    async def chat(payload: ChatRequest, request: Request) -> StreamingResponse:
+    async def chat(
+        payload: ChatRequest,
+        request: Request,
+        current_user: AuthUser = Depends(get_current_user),
+    ) -> StreamingResponse:
         return StreamingResponse(
             _chat_event_stream(
                 payload,
+                current_user,
                 request.app.state.agent_runner,
                 request.app.state.context_persister,
                 timeout_seconds=request.app.state.agent_timeout_seconds,
@@ -177,6 +224,10 @@ def _client_key(request: Request) -> str:
     if forwarded_for:
         return forwarded_for.split(",", 1)[0].strip()
     return request.client.host if request.client else "unknown"
+
+
+def scoped_memory_session_id(user: AuthUser, session_id: str) -> str:
+    return f"user:{user.user_id}:session:{session_id}"
 
 
 def _log_request(request: Request, response: Response, request_id: str, elapsed_ms: float) -> None:
@@ -230,6 +281,7 @@ def _run_agent_with_tracking(state: AgentState) -> AgentState:
 
 async def _chat_event_stream(
     payload: ChatRequest,
+    current_user: AuthUser,
     agent_runner: AgentRunner,
     context_persister: ContextPersister,
     *,
@@ -237,10 +289,11 @@ async def _chat_event_stream(
     request_id: str,
 ) -> AsyncIterator[str]:
     user_message = HumanMessage(content=payload.message)
-    memory = get_memory(payload.session_id)
+    scoped_session_id = scoped_memory_session_id(current_user, payload.session_id)
+    memory = get_memory(scoped_session_id)
     state: AgentState = {
         "query": payload.message,
-        "session_id": payload.session_id,
+        "session_id": scoped_session_id,
         "messages": [*memory.get("session_messages", []), user_message],
     }
     if memory.get("system_message") is not None:
@@ -285,8 +338,8 @@ async def _chat_event_stream(
     yield f"event: done\ndata: {json.dumps(done_payload)}\n\n"
     yield "data: [DONE]\n\n"
 
-    append_session_messages(payload.session_id, [user_message, AIMessage(content=response_text)])
-    await asyncio.to_thread(context_persister, payload.session_id, load_session_messages(payload.session_id))
+    append_session_messages(scoped_session_id, [user_message, AIMessage(content=response_text)])
+    await asyncio.to_thread(context_persister, scoped_session_id, load_session_messages(scoped_session_id))
 
 
 def _stream_response_tokens(response_text: str, *, chunk_size: int = 24) -> list[str]:

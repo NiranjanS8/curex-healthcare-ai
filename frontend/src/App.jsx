@@ -6,9 +6,12 @@ import {
   Database,
   Eye,
   EyeOff,
+  LockKeyhole,
+  LogOut,
   Menu,
   ShieldCheck,
   Stethoscope,
+  UserPlus,
   X,
 } from 'lucide-react'
 import { ChatInput } from './components/ChatInput'
@@ -18,6 +21,7 @@ import { Sidebar } from './components/Sidebar'
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const TOKEN_STORAGE_KEY = 'curex_auth'
 
 const DEFAULT_METRICS = [
   { name: 'Faithfulness', value: null, level: 'unknown' },
@@ -84,7 +88,23 @@ function createAgentTrace({ status = 'pending', citations = [], faithfulnessScor
   ]
 }
 
-function LandingPage({ metrics, onStart }) {
+function readStoredAuth() {
+  try {
+    return JSON.parse(localStorage.getItem(TOKEN_STORAGE_KEY) || 'null')
+  } catch {
+    return null
+  }
+}
+
+function storeAuth(auth) {
+  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(auth))
+}
+
+function clearStoredAuth() {
+  localStorage.removeItem(TOKEN_STORAGE_KEY)
+}
+
+function LandingPage({ metrics, onStart, onSignIn, isAuthenticated }) {
   return (
     <main className="landing-page">
       <nav className="landing-nav" aria-label="Primary">
@@ -92,10 +112,17 @@ function LandingPage({ metrics, onStart }) {
           <span>CX</span>
           <strong>CureX</strong>
         </div>
-        <button type="button" className="nav-action" onClick={onStart}>
-          Open assistant
-          <ArrowRight size={16} />
-        </button>
+        <div className="landing-nav-actions">
+          {!isAuthenticated && (
+            <button type="button" className="nav-action" onClick={onSignIn}>
+              Sign in
+            </button>
+          )}
+          <button type="button" className="nav-action" onClick={onStart}>
+            Open assistant
+            <ArrowRight size={16} />
+          </button>
+        </div>
       </nav>
 
       <section className="landing-hero">
@@ -180,6 +207,91 @@ function LandingPage({ metrics, onStart }) {
   )
 }
 
+function AuthPage({ mode, onModeChange, onAuthenticated, onCancel }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const isRegister = mode === 'register'
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setError('')
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/${isRegister ? 'register' : 'login'}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.detail || 'Authentication failed.')
+      }
+      const auth = { token: payload.access_token, user: payload.user }
+      storeAuth(auth)
+      onAuthenticated(auth)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Authentication failed.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <main className="auth-page">
+      <section className="auth-card">
+        <div className="auth-mark">
+          {isRegister ? <UserPlus size={22} /> : <LockKeyhole size={22} />}
+        </div>
+        <p className="eyebrow">Secure workspace</p>
+        <h1>{isRegister ? 'Create your CureX account' : 'Sign in to CureX'}</h1>
+        <p className="auth-copy">
+          JWT authentication keeps chat sessions and patient memory scoped to your account.
+        </p>
+
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <label>
+            Username or email
+            <input
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              autoComplete="username"
+              placeholder="clinician@example.com"
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete={isRegister ? 'new-password' : 'current-password'}
+              placeholder="At least 8 characters"
+              required
+            />
+          </label>
+          {error && <p className="auth-error">{error}</p>}
+          <button type="submit" className="primary-landing-action" disabled={isSubmitting}>
+            {isSubmitting ? 'Please wait...' : isRegister ? 'Create account' : 'Sign in'}
+            <ArrowRight size={18} />
+          </button>
+        </form>
+
+        <div className="auth-switch">
+          <button type="button" onClick={() => onModeChange(isRegister ? 'login' : 'register')}>
+            {isRegister ? 'Already have an account? Sign in' : 'Need an account? Create one'}
+          </button>
+          <button type="button" onClick={onCancel}>
+            Back to overview
+          </button>
+        </div>
+      </section>
+    </main>
+  )
+}
+
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -190,6 +302,8 @@ function App() {
   const [metrics, setMetrics] = useState(DEFAULT_METRICS)
   const [citationDetails, setCitationDetails] = useState({})
   const [isAgentTraceVisible, setIsAgentTraceVisible] = useState(false)
+  const [auth, setAuth] = useState(() => readStoredAuth())
+  const [authMode, setAuthMode] = useState(null)
   const chatEndRef = useRef(null)
 
   useEffect(() => {
@@ -197,8 +311,9 @@ function App() {
   }, [messages])
 
   useEffect(() => {
+    if (!auth?.token) return undefined
     let cancelled = false
-    fetch(`${API_BASE_URL}/eval/metrics`)
+    fetch(`${API_BASE_URL}/eval/metrics`, { headers: authHeaders() })
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
         if (cancelled || !payload?.metrics) return
@@ -215,12 +330,24 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [auth?.token])
+
+  const authHeaders = (headers = {}) => ({
+    ...headers,
+    ...(auth?.token ? { Authorization: `Bearer ${auth.token}` } : {}),
+  })
 
   const createSession = async () => {
+    if (!auth?.token) {
+      setAuthMode('login')
+      throw new Error('Authentication required.')
+    }
     let sessionId = `session-${Date.now()}`
     try {
-      const response = await fetch(`${API_BASE_URL}/session/new`, { method: 'POST' })
+      const response = await fetch(`${API_BASE_URL}/session/new`, {
+        method: 'POST',
+        headers: authHeaders(),
+      })
       if (response.ok) {
         const payload = await response.json()
         sessionId = payload.session_id || sessionId
@@ -232,6 +359,10 @@ function App() {
   }
 
   const handleNewSession = async () => {
+    if (!auth?.token) {
+      setAuthMode('login')
+      return
+    }
     const sessionId = await createSession()
     setMessages([])
     setActiveSessionId(sessionId)
@@ -249,7 +380,7 @@ function App() {
     setSelectedCitationId(null)
     setIsMobileMenuOpen(false)
     try {
-      const response = await fetch(`${API_BASE_URL}/session/${id}/history`)
+      const response = await fetch(`${API_BASE_URL}/session/${id}/history`, { headers: authHeaders() })
       if (!response.ok) return
       const payload = await response.json()
       setMessages(
@@ -315,7 +446,7 @@ function App() {
   const sendViaApi = async (sessionId, content, assistantId) => {
     const response = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ session_id: sessionId, message: content }),
     })
     if (!response.ok || !response.body) throw new Error('Unable to stream response')
@@ -356,6 +487,10 @@ function App() {
   }
 
   const handleSendMessage = async (content) => {
+    if (!auth?.token) {
+      setAuthMode('login')
+      return
+    }
     const sessionId = activeSessionId || (await createSession())
     if (!activeSessionId) {
       setActiveSessionId(sessionId)
@@ -418,8 +553,42 @@ function App() {
 
   const selectedCitation = selectedCitationId ? citationDetails[selectedCitationId] : null
 
+  const handleAuthenticated = (nextAuth) => {
+    setAuth(nextAuth)
+    setAuthMode(null)
+  }
+
+  const handleLogout = () => {
+    clearStoredAuth()
+    setAuth(null)
+    setAuthMode(null)
+    setActiveSessionId(null)
+    setMessages([])
+    setSessions([])
+    setCitationDetails({})
+    setSelectedCitationId(null)
+  }
+
+  if (!auth?.token && authMode) {
+    return (
+      <AuthPage
+        mode={authMode}
+        onModeChange={setAuthMode}
+        onAuthenticated={handleAuthenticated}
+        onCancel={() => setAuthMode(null)}
+      />
+    )
+  }
+
   if (!activeSessionId) {
-    return <LandingPage metrics={metrics} onStart={handleNewSession} />
+    return (
+      <LandingPage
+        metrics={metrics}
+        onStart={handleNewSession}
+        onSignIn={() => setAuthMode('login')}
+        isAuthenticated={Boolean(auth?.token)}
+      />
+    )
   }
 
   return (
@@ -440,6 +609,8 @@ function App() {
           metrics={metrics}
           onNewSession={handleNewSession}
           onSelectSession={handleSelectSession}
+          user={auth?.user}
+          onLogout={handleLogout}
         />
       </div>
 

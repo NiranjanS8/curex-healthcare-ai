@@ -1,4 +1,4 @@
-import { Activity, MessageSquare, Plus } from 'lucide-react'
+import { Activity, LogOut, MessageSquare, Plus } from 'lucide-react'
 
 function getMetricClass(level) {
   if (level === 'high') return 'metric-high'
@@ -7,7 +7,7 @@ function getMetricClass(level) {
   return 'metric-low'
 }
 
-export function Sidebar({ sessions, activeSessionId, metrics, onNewSession, onSelectSession }) {
+export function Sidebar({ sessions, activeSessionId, metrics, onNewSession, onSelectSession, user, onLogout }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -16,6 +16,16 @@ export function Sidebar({ sessions, activeSessionId, metrics, onNewSession, onSe
           <Plus size={18} />
           <span>New Session</span>
         </button>
+        {user && (
+          <div className="sidebar-user">
+            <span>
+              Signed in as <strong>{user.username}</strong>
+            </span>
+            <button type="button" onClick={onLogout} aria-label="Log out">
+              <LogOut size={15} />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="session-list-wrap">
