@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import os
+import sqlite3
+import time
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import NotRequired, TypedDict
+from typing import Any, NotRequired, TypedDict
 
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.outputs import LLMResult
 from langchain_core.retrievers import BaseRetriever
 from langgraph.graph import END, START, StateGraph
 from rich.console import Console
@@ -16,6 +22,18 @@ from backend.agent.router import QueryIntent, classify_intent, route
 from backend.agent.tools import check_drug_interactions
 from backend.generation.faithfulness import score_faithfulness
 from backend.generation.safety import post_check, pre_check
+
+
+os.environ.setdefault("LANGCHAIN_PROJECT", "healthcare-rag")
+if os.getenv("LANGCHAIN_API_KEY"):
+    os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
+
+DEFAULT_QUERY_LOG_DB_PATH = Path("healthcare_query_log.sqlite")
+MODEL_PRICING_PER_1M_TOKENS = {
+    "gpt-4o": {"input": 2.50, "output": 10.00},
+    "gpt-4o-2024-05-13": {"input": 5.00, "output": 15.00},
+    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+}
 
 
 class AgentState(TypedDict):
@@ -191,6 +209,188 @@ def build_agent_graph():
 
 
 graph = build_agent_graph()
+
+
+def _intent_category(state: AgentState) -> str:
+    intent = state.get("intent")
+    return intent.category if intent else "unknown"
+
+
+def build_run_config(state: AgentState, *, callbacks: list[Any] | None = None) -> dict[str, Any]:
+    """Build LangChain run config with tracing metadata."""
+
+    config: dict[str, Any] = {
+        "metadata": {
+            "query_category": _intent_category(state),
+            "session_id": state["session_id"],
+            "faithfulness_score": state.get("faithfulness_score"),
+        }
+    }
+    if callbacks:
+        config["callbacks"] = callbacks
+    return config
+
+
+def invoke_agent(state: AgentState, *, callbacks: list[Any] | None = None) -> AgentState:
+    """Invoke the compiled graph with standard metadata attached."""
+
+    return graph.invoke(state, config=build_run_config(state, callbacks=callbacks))
+
+
+def init_query_log(db_path: str | Path | None = None) -> Path:
+    path = Path(db_path or os.getenv("QUERY_LOG_DB_PATH") or DEFAULT_QUERY_LOG_DB_PATH)
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS query_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                query TEXT NOT NULL,
+                cost_usd REAL NOT NULL,
+                latency_ms REAL NOT NULL,
+                faithfulness REAL,
+                timestamp TEXT NOT NULL
+            )
+            """
+        )
+    return path
+
+
+def log_query_run(
+    *,
+    session_id: str,
+    query: str,
+    cost_usd: float,
+    latency_ms: float,
+    faithfulness: float | None,
+    db_path: str | Path | None = None,
+) -> None:
+    with sqlite3.connect(init_query_log(db_path)) as conn:
+        conn.execute(
+            """
+            INSERT INTO query_log (session_id, query, cost_usd, latency_ms, faithfulness, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session_id,
+                query,
+                float(cost_usd),
+                float(latency_ms),
+                faithfulness,
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+
+
+def _token_usage_from_llm_result(response: LLMResult) -> dict[str, int]:
+    usage: dict[str, int] = {}
+    llm_output = response.llm_output or {}
+    if isinstance(llm_output, dict):
+        usage.update(llm_output.get("token_usage") or {})
+        usage.update(llm_output.get("usage") or {})
+
+    for generations in response.generations:
+        for generation in generations:
+            message = getattr(generation, "message", None)
+            metadata = getattr(message, "response_metadata", {}) if message is not None else {}
+            usage.update(metadata.get("token_usage") or {})
+            usage.update(metadata.get("usage") or {})
+
+    prompt_tokens = usage.get("prompt_tokens") or usage.get("input_tokens") or 0
+    completion_tokens = usage.get("completion_tokens") or usage.get("output_tokens") or 0
+    return {
+        "prompt_tokens": int(prompt_tokens),
+        "completion_tokens": int(completion_tokens),
+    }
+
+
+class CostTracker(BaseCallbackHandler):
+    """Track token usage, latency, and estimated model cost for a query run."""
+
+    def __init__(
+        self,
+        *,
+        session_id: str,
+        query: str,
+        model_name: str = "gpt-4o",
+        faithfulness: float | None = None,
+        db_path: str | Path | None = None,
+    ) -> None:
+        self.session_id = session_id
+        self.query = query
+        self.model_name = model_name
+        self.faithfulness = faithfulness
+        self.db_path = db_path
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+        self.started_at = time.perf_counter()
+        self.cost_usd = 0.0
+        self.latency_ms = 0.0
+
+    def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
+        usage = _token_usage_from_llm_result(response)
+        self.prompt_tokens += usage["prompt_tokens"]
+        self.completion_tokens += usage["completion_tokens"]
+
+    def calculate_cost(self) -> float:
+        pricing = MODEL_PRICING_PER_1M_TOKENS.get(
+            self.model_name,
+            MODEL_PRICING_PER_1M_TOKENS["gpt-4o"],
+        )
+        input_cost = (self.prompt_tokens / 1_000_000) * pricing["input"]
+        output_cost = (self.completion_tokens / 1_000_000) * pricing["output"]
+        return round(input_cost + output_cost, 8)
+
+    def finish(self, *, faithfulness: float | None = None) -> dict[str, float | int]:
+        self.latency_ms = (time.perf_counter() - self.started_at) * 1000
+        if faithfulness is not None:
+            self.faithfulness = faithfulness
+        self.cost_usd = self.calculate_cost()
+        log_query_run(
+            session_id=self.session_id,
+            query=self.query,
+            cost_usd=self.cost_usd,
+            latency_ms=self.latency_ms,
+            faithfulness=self.faithfulness,
+            db_path=self.db_path,
+        )
+        return {
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "cost_usd": self.cost_usd,
+            "latency_ms": self.latency_ms,
+        }
+
+
+def get_run_summary(n: int = 20, *, db_path: str | Path | None = None) -> dict[str, float | int]:
+    with sqlite3.connect(init_query_log(db_path)) as conn:
+        rows = conn.execute(
+            """
+            SELECT cost_usd, latency_ms, faithfulness
+            FROM query_log
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (n,),
+        ).fetchall()
+
+    if not rows:
+        return {
+            "runs": 0,
+            "avg_latency_ms": 0.0,
+            "avg_cost_usd": 0.0,
+            "avg_faithfulness": 0.0,
+        }
+
+    faithfulness_values = [row[2] for row in rows if row[2] is not None]
+    return {
+        "runs": len(rows),
+        "avg_latency_ms": sum(row[1] for row in rows) / len(rows),
+        "avg_cost_usd": sum(row[0] for row in rows) / len(rows),
+        "avg_faithfulness": (
+            sum(faithfulness_values) / len(faithfulness_values) if faithfulness_values else 0.0
+        ),
+    }
 
 
 def print_graph_structure() -> None:
