@@ -1131,6 +1131,48 @@
   background: var(--low);
 }
 
+.review-row {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(209, 209, 219, 0.72);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-button {
+  min-height: 32px;
+  border: 1px solid rgba(92, 132, 142, 0.24);
+  border-radius: 8px;
+  padding: 6px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #465352;
+  background: rgba(245, 245, 247, 0.74);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.review-button:hover,
+.review-button-active {
+  color: white;
+  border-color: var(--primary-accent);
+  background: var(--primary-accent);
+}
+
+.review-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.review-error {
+  color: #92400e;
+  font-size: 12px;
+}
+
 .agent-trace {
   margin-top: 14px;
   border: 1px solid rgba(92, 132, 142, 0.22);

@@ -515,6 +515,7 @@ function App() {
               ...message,
               citations,
               faithfulnessScore: payload.faithfulness_score ?? message.faithfulnessScore,
+              requestId: payload.request_id ?? message.requestId,
               agentTrace: createAgentTrace({
                 status: 'complete',
                 citations,
@@ -672,6 +673,59 @@ function App() {
     }
   }
 
+  const handleReviewMessage = async (messageId, rating) => {
+    const message = messages.find((item) => item.id === messageId)
+    if (!message || !activeSessionId) return
+    if (!auth?.token) {
+      setAuthMode('login')
+      return
+    }
+
+    setMessages((current) =>
+      current.map((item) =>
+        item.id === messageId ? { ...item, reviewPending: true, reviewError: null } : item,
+      ),
+    )
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/feedback`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          session_id: activeSessionId,
+          message_id: messageId,
+          request_id: message.requestId || null,
+          rating,
+          answer: message.content,
+          citations: message.citations || [],
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.detail || 'Review could not be saved.')
+      }
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === messageId
+            ? { ...item, reviewPending: false, reviewRating: rating, reviewError: null }
+            : item,
+        ),
+      )
+    } catch (err) {
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === messageId
+            ? {
+                ...item,
+                reviewPending: false,
+                reviewError: err instanceof Error ? err.message : 'Review could not be saved.',
+              }
+            : item,
+        ),
+      )
+    }
+  }
+
   const selectedCitation = selectedCitationId ? citationDetails[selectedCitationId] : null
 
   const handleAuthenticated = (nextAuth) => {
@@ -808,6 +862,7 @@ function App() {
                     key={message.id}
                     message={message}
                     onCitationClick={handleCitationClick}
+                    onReview={handleReviewMessage}
                     showAgentTrace={isAgentTraceVisible}
                   />
                 ))}

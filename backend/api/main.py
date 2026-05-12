@@ -42,6 +42,7 @@ from backend.auth import (
 )
 from backend.generation.prompts import format_citations
 from backend.ingestion.indexer import index_uploaded_document
+from backend.review import FeedbackPayload, FeedbackRecord, feedback_summary, init_feedback_db, save_feedback
 
 
 console = Console()
@@ -82,6 +83,7 @@ def create_app(
     agent_timeout_seconds: float | None = None,
     rate_limit_per_minute: int | None = None,
     auth_db_path: str | Path | None = None,
+    feedback_db_path: str | Path | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -90,7 +92,9 @@ def create_app(
 
     app = FastAPI(title="Healthcare RAG Assistant API", version=__version__, lifespan=lifespan)
     app.state.auth_db_path = auth_db_path
+    app.state.feedback_db_path = feedback_db_path
     init_auth_db(auth_db_path)
+    init_feedback_db(feedback_db_path)
     app.state.agent_runner = agent_runner or _run_agent_with_tracking
     app.state.context_persister = context_persister or persist_conversation_context
     app.state.document_indexer = document_indexer or _index_uploaded_document_for_user
@@ -211,6 +215,21 @@ def create_app(
     async def eval_metrics(current_user: AuthUser = Depends(get_current_user)) -> dict[str, Any]:
         _ = current_user
         return load_latest_eval_metrics()
+
+    @app.post("/feedback", response_model=FeedbackRecord)
+    async def submit_feedback(
+        payload: FeedbackPayload,
+        request: Request,
+        current_user: AuthUser = Depends(get_current_user),
+    ) -> FeedbackRecord:
+        return save_feedback(payload, user_id=current_user.user_id, db_path=request.app.state.feedback_db_path)
+
+    @app.get("/feedback/summary")
+    async def get_feedback_summary(
+        request: Request,
+        current_user: AuthUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        return feedback_summary(user_id=current_user.user_id, db_path=request.app.state.feedback_db_path)
 
     @app.post("/documents/upload", response_model=DocumentIngestResponse)
     async def upload_document(

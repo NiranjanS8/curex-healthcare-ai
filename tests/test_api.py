@@ -26,6 +26,7 @@ def make_client(tmp_path: Path, **kwargs) -> TestClient:
             agent_runner=kwargs.pop("agent_runner", fake_agent_runner),
             context_persister=kwargs.pop("context_persister", lambda *_: None),
             auth_db_path=tmp_path / "auth.sqlite",
+            feedback_db_path=tmp_path / "feedback.sqlite",
             **kwargs,
         )
     )
@@ -295,3 +296,48 @@ def test_upload_document_rejects_unsupported_file_type(tmp_path: Path) -> None:
     )
 
     assert response.status_code == 400
+
+
+def test_feedback_submission_is_user_scoped(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    first_user = auth_headers(client, "reviewer-one@example.com")
+    second_user = auth_headers(client, "reviewer-two@example.com")
+
+    response = client.post(
+        "/feedback",
+        headers=first_user,
+        json={
+            "session_id": "session-1",
+            "message_id": "assistant-1",
+            "request_id": "req-1",
+            "rating": "unsupported",
+            "answer": "Unsupported answer.",
+            "comment": "Citation does not support the claim.",
+            "citations": [{"chunkId": "chunk-1", "source": "Guideline"}],
+        },
+    )
+    first_summary = client.get("/feedback/summary", headers=first_user)
+    second_summary = client.get("/feedback/summary", headers=second_user)
+
+    assert response.status_code == 200
+    assert response.json()["rating"] == "unsupported"
+    assert response.json()["user_id"]
+    assert first_summary.json()["counts"]["unsupported"] == 1
+    assert second_summary.json()["total"] == 0
+
+
+def test_feedback_rejects_unknown_rating(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    headers = auth_headers(client)
+
+    response = client.post(
+        "/feedback",
+        headers=headers,
+        json={
+            "session_id": "session-1",
+            "message_id": "assistant-1",
+            "rating": "looks_good",
+        },
+    )
+
+    assert response.status_code == 422

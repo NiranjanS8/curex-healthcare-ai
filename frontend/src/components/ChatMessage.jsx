@@ -1,4 +1,4 @@
-import { Bot, User } from 'lucide-react'
+import { AlertTriangle, Bot, ClipboardCheck, Flag, ThumbsUp, User } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { CitationChip } from './CitationChip'
 
@@ -32,7 +32,14 @@ function AgentTrace({ steps }) {
   )
 }
 
-export function ChatMessage({ message, onCitationClick, showAgentTrace = false }) {
+const REVIEW_OPTIONS = [
+  { value: 'helpful', label: 'Helpful', icon: ThumbsUp },
+  { value: 'unsupported', label: 'Unsupported', icon: Flag },
+  { value: 'unsafe', label: 'Unsafe', icon: AlertTriangle },
+  { value: 'needs_review', label: 'Needs review', icon: ClipboardCheck },
+]
+
+export function ChatMessage({ message, onCitationClick, onReview, showAgentTrace = false }) {
   if (message.role === 'user') {
     return (
       <article className="message-row user-row">
@@ -81,6 +88,29 @@ export function ChatMessage({ message, onCitationClick, showAgentTrace = false }
           )}
 
           {showAgentTrace && <AgentTrace steps={message.agentTrace} />}
+
+          {message.content && (
+            <div className="review-row" aria-label="Review assistant response">
+              {REVIEW_OPTIONS.map((option) => {
+                const Icon = option.icon
+                const isSelected = message.reviewRating === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`review-button ${isSelected ? 'review-button-active' : ''}`}
+                    onClick={() => onReview?.(message.id, option.value)}
+                    disabled={message.reviewPending}
+                    aria-pressed={isSelected}
+                  >
+                    <Icon size={14} />
+                    {option.label}
+                  </button>
+                )
+              })}
+              {message.reviewError && <span className="review-error">{message.reviewError}</span>}
+            </div>
+          )}
         </div>
       </div>
     </article>
