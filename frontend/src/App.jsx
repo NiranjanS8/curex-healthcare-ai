@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   AlertCircle,
   ArrowRight,
+  BarChart3,
   BookOpenCheck,
   BrainCircuit,
   ClipboardCheck,
@@ -12,6 +13,7 @@ import {
   LockKeyhole,
   LogOut,
   Menu,
+  MessageSquare,
   ShieldCheck,
   Stethoscope,
   UploadCloud,
@@ -33,6 +35,16 @@ const DEFAULT_METRICS = [
   { name: 'Context Precision', value: null, level: 'unknown' },
   { name: 'Context Recall', value: null, level: 'unknown' },
 ]
+
+const DEFAULT_FEEDBACK_SUMMARY = {
+  total: 0,
+  counts: {
+    helpful: 0,
+    unsupported: 0,
+    unsafe: 0,
+    needs_review: 0,
+  },
+}
 
 function nowLabel() {
   return new Date().toLocaleTimeString('en-US', {
@@ -372,6 +384,130 @@ function AuthPage({ mode, onModeChange, onAuthenticated, onCancel }) {
   )
 }
 
+function EvaluationDashboard({ metrics, evalSnapshot, feedbackSummary, sessions, messages, onBackToChat }) {
+  const feedbackCounts = feedbackSummary?.counts || DEFAULT_FEEDBACK_SUMMARY.counts
+  const totalFeedback = feedbackSummary?.total || 0
+  const answeredMessages = messages.filter((message) => message.role === 'assistant' && message.content)
+  const citedAnswers = answeredMessages.filter((message) => message.citations?.length).length
+  const averageFaithfulness = (() => {
+    const scores = answeredMessages
+      .map((message) => message.faithfulnessScore)
+      .filter((score) => typeof score === 'number')
+    if (!scores.length) return null
+    return scores.reduce((sum, score) => sum + score, 0) / scores.length
+  })()
+  const reviewRiskCount = feedbackCounts.unsupported + feedbackCounts.unsafe + feedbackCounts.needs_review
+  const helpfulRate = totalFeedback ? feedbackCounts.helpful / totalFeedback : null
+
+  return (
+    <section className="evaluation-dashboard" aria-label="Evaluation dashboard">
+      <div className="dashboard-header">
+        <div>
+          <p className="eyebrow">Evaluation Dashboard</p>
+          <h2>RAG quality, grounding, and human review signals.</h2>
+          <p>
+            Track offline eval scores, live session quality, citation coverage, and reviewer flags
+            from the human-in-the-loop feedback workflow.
+          </p>
+        </div>
+        <button type="button" className="dashboard-back-button" onClick={onBackToChat}>
+          <MessageSquare size={16} />
+          Back to chat
+        </button>
+      </div>
+
+      <div className="dashboard-kpis">
+        <article>
+          <span>Eval runs</span>
+          <strong>{evalSnapshot?.runs ?? '--'}</strong>
+          <small>{evalSnapshot?.available ? 'Latest CSV aggregate' : 'No eval file found'}</small>
+        </article>
+        <article>
+          <span>Reviewed answers</span>
+          <strong>{totalFeedback}</strong>
+          <small>{helpfulRate === null ? 'No review labels yet' : `${(helpfulRate * 100).toFixed(0)}% helpful`}</small>
+        </article>
+        <article>
+          <span>Risk flags</span>
+          <strong>{reviewRiskCount}</strong>
+          <small>Unsupported, unsafe, or needs review</small>
+        </article>
+        <article>
+          <span>Live citation coverage</span>
+          <strong>{answeredMessages.length ? `${Math.round((citedAnswers / answeredMessages.length) * 100)}%` : '--'}</strong>
+          <small>{answeredMessages.length} assistant answer{answeredMessages.length === 1 ? '' : 's'} in view</small>
+        </article>
+      </div>
+
+      <div className="dashboard-grid">
+        <article className="dashboard-panel">
+          <div className="panel-title">
+            <BarChart3 size={18} />
+            <h3>RAG metrics</h3>
+          </div>
+          <div className="metric-bars">
+            {metrics.map((metric) => (
+              <div key={metric.name} className="metric-bar-row">
+                <div>
+                  <span>{metric.name}</span>
+                  <strong>{metric.value === null ? '--' : `${(metric.value * 100).toFixed(0)}%`}</strong>
+                </div>
+                <div className="metric-bar-track">
+                  <span
+                    className={`metric-bar-fill metric-bar-${metric.level}`}
+                    style={{ width: `${metric.value === null ? 0 : Math.round(metric.value * 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="dashboard-panel">
+          <div className="panel-title">
+            <ClipboardCheck size={18} />
+            <h3>Human review</h3>
+          </div>
+          <div className="feedback-breakdown">
+            {[
+              ['Helpful', feedbackCounts.helpful],
+              ['Unsupported', feedbackCounts.unsupported],
+              ['Unsafe', feedbackCounts.unsafe],
+              ['Needs review', feedbackCounts.needs_review],
+            ].map(([label, count]) => (
+              <div key={label}>
+                <span>{label}</span>
+                <strong>{count}</strong>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="dashboard-panel dashboard-panel-wide">
+          <div className="panel-title">
+            <ShieldCheck size={18} />
+            <h3>Operational signals</h3>
+          </div>
+          <div className="signal-list">
+            <div>
+              <span>Active sessions in browser</span>
+              <strong>{sessions.length}</strong>
+            </div>
+            <div>
+              <span>Average visible faithfulness</span>
+              <strong>{averageFaithfulness === null ? '--' : `${(averageFaithfulness * 100).toFixed(0)}%`}</strong>
+            </div>
+            <div>
+              <span>Evaluation source</span>
+              <strong>{evalSnapshot?.available ? evalSnapshot.path : 'Pending run'}</strong>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  )
+}
+
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -382,8 +518,11 @@ function App() {
   const [messages, setMessages] = useState([])
   const [sessions, setSessions] = useState([])
   const [metrics, setMetrics] = useState(DEFAULT_METRICS)
+  const [evalSnapshot, setEvalSnapshot] = useState(null)
+  const [feedbackSummary, setFeedbackSummary] = useState(DEFAULT_FEEDBACK_SUMMARY)
   const [citationDetails, setCitationDetails] = useState({})
   const [isAgentTraceVisible, setIsAgentTraceVisible] = useState(false)
+  const [activeView, setActiveView] = useState('chat')
   const [auth, setAuth] = useState(() => readStoredAuth())
   const [authMode, setAuthMode] = useState(null)
   const chatEndRef = useRef(null)
@@ -396,10 +535,19 @@ function App() {
   useEffect(() => {
     if (!auth?.token) return undefined
     let cancelled = false
-    fetch(`${API_BASE_URL}/eval/metrics`, { headers: authHeaders() })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((payload) => {
+    Promise.all([
+      fetch(`${API_BASE_URL}/eval/metrics`, { headers: authHeaders() }).then((response) =>
+        response.ok ? response.json() : null,
+      ),
+      fetch(`${API_BASE_URL}/feedback/summary`, { headers: authHeaders() }).then((response) =>
+        response.ok ? response.json() : null,
+      ),
+    ])
+      .then(([payload, feedback]) => {
+        if (cancelled) return
+        if (feedback) setFeedbackSummary(feedback)
         if (cancelled || !payload?.metrics) return
+        setEvalSnapshot(payload)
         const nextMetrics = DEFAULT_METRICS.map((metric) => {
           const key = metric.name.toLowerCase().replaceAll(' ', '_')
           const value = payload.metrics[key]
@@ -455,6 +603,7 @@ function App() {
       { id: sessionId, title: 'New Healthcare Conversation', timestamp: 'Just now' },
       ...current,
     ])
+    setActiveView('chat')
     setIsMobileMenuOpen(false)
   }
 
@@ -711,6 +860,12 @@ function App() {
             : item,
         ),
       )
+      fetch(`${API_BASE_URL}/feedback/summary`, { headers: authHeaders() })
+        .then((summaryResponse) => (summaryResponse.ok ? summaryResponse.json() : null))
+        .then((summary) => {
+          if (summary) setFeedbackSummary(summary)
+        })
+        .catch(() => {})
     } catch (err) {
       setMessages((current) =>
         current.map((item) =>
@@ -743,6 +898,9 @@ function App() {
     setCitationDetails({})
     setSelectedCitationId(null)
     setUploadStatus(null)
+    setEvalSnapshot(null)
+    setFeedbackSummary(DEFAULT_FEEDBACK_SUMMARY)
+    setActiveView('chat')
   }
 
   if (!auth?.token && authMode) {
@@ -787,6 +945,15 @@ function App() {
           onSelectSession={handleSelectSession}
           user={auth?.user}
           onLogout={handleLogout}
+          activeView={activeView}
+          onShowDashboard={() => {
+            setActiveView('dashboard')
+            setIsMobileMenuOpen(false)
+          }}
+          onShowChat={() => {
+            setActiveView('chat')
+            setIsMobileMenuOpen(false)
+          }}
         />
       </div>
 
@@ -809,6 +976,16 @@ function App() {
         </div>
 
         <section className="chat-scroll">
+          {activeView === 'dashboard' ? (
+            <EvaluationDashboard
+              metrics={metrics}
+              evalSnapshot={evalSnapshot}
+              feedbackSummary={feedbackSummary}
+              sessions={sessions}
+              messages={messages}
+              onBackToChat={() => setActiveView('chat')}
+            />
+          ) : (
           <div className="chat-content">
             <div className="chat-toolbar">
               <div className="document-upload">
@@ -880,9 +1057,10 @@ function App() {
               </div>
             )}
           </div>
+          )}
         </section>
 
-        <ChatInput onSend={handleSendMessage} isLoading={isLoading} />
+        {activeView === 'chat' && <ChatInput onSend={handleSendMessage} isLoading={isLoading} />}
       </main>
     </div>
   )

@@ -1,4 +1,4 @@
-import { Activity, LogOut, MessageSquare, Plus } from 'lucide-react'
+import { Activity, BarChart3, LogOut, MessageSquare, Plus } from 'lucide-react'
 
 function getMetricClass(level) {
   if (level === 'high') return 'metric-high'
@@ -7,7 +7,18 @@ function getMetricClass(level) {
   return 'metric-low'
 }
 
-export function Sidebar({ sessions, activeSessionId, metrics, onNewSession, onSelectSession, user, onLogout }) {
+export function Sidebar({
+  sessions,
+  activeSessionId,
+  metrics,
+  onNewSession,
+  onSelectSession,
+  user,
+  onLogout,
+  activeView,
+  onShowDashboard,
+  onShowChat,
+}) {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -30,6 +41,25 @@ export function Sidebar({ sessions, activeSessionId, metrics, onNewSession, onSe
 
       <div className="session-list-wrap">
         <div className="session-list-inner">
+          <h3>Workspace</h3>
+          <div className="workspace-nav">
+            <button
+              type="button"
+              className={`workspace-nav-button ${activeView === 'chat' ? 'workspace-nav-active' : ''}`}
+              onClick={onShowChat}
+            >
+              <MessageSquare size={16} />
+              Chat
+            </button>
+            <button
+              type="button"
+              className={`workspace-nav-button ${activeView === 'dashboard' ? 'workspace-nav-active' : ''}`}
+              onClick={onShowDashboard}
+            >
+              <BarChart3 size={16} />
+              Eval dashboard
+            </button>
+          </div>
           <h3>Recent Sessions</h3>
           <div className="session-list">
           {sessions.map((session) => (
