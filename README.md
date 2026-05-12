@@ -21,6 +21,8 @@ The assistant is for educational and research workflows only. It is not a substi
 
 ## Architecture
 
+![CureX architecture diagram](Architecture.png)
+
 ```text
 Frontend React app
         |
@@ -152,4 +154,3 @@ Run the local healthcare tool server:
 ```
 
 Available tools include drug interaction lookup, ICD-10 lookup, BMI calculation, and retrieval search over indexed healthcare chunks.
-
